@@ -42,30 +42,31 @@ export function FilterBar({
     return (
         <div className="flex flex-col gap-4 mb-6 animate-fade-in">
             {/* Top row: Status Filter + View Toggle */}
-            <div className="flex items-center justify-between">
-                <div className={`flex rounded p-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+            {/* Top row: Status Filter + View Toggle */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
+                <div className={`grid grid-cols-3 w-full sm:w-auto sm:flex rounded p-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
                     {(['all', 'active', 'completed'] as const).map((status) => (
                         <button
                             key={status}
                             onClick={() => onFilterStatusChange(status)}
-                            className={`px-3 py-1 text-sm rounded transition-all ${filterStatus === status ? filterBtnActive : filterBtnInactive}`}
+                            className={`px-3 py-1 text-sm rounded transition-all whitespace-nowrap ${filterStatus === status ? filterBtnActive : filterBtnInactive}`}
                         >
                             {status.charAt(0).toUpperCase() + status.slice(1)}
                         </button>
                     ))}
                 </div>
 
-                <div className={`flex rounded p-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                <div className={`grid grid-cols-2 w-full sm:w-auto sm:flex rounded p-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
                     <button
                         onClick={() => onViewModeChange('list')}
-                        className={`px-3 py-1 text-sm rounded transition-all ${viewMode === 'list' ? filterBtnActive : filterBtnInactive}`}
+                        className={`px-3 py-1 text-sm rounded transition-all justify-center flex ${viewMode === 'list' ? filterBtnActive : filterBtnInactive}`}
                         title="List View"
                     >
                         📝 List
                     </button>
                     <button
                         onClick={() => onViewModeChange('timeline')}
-                        className={`px-3 py-1 text-sm rounded transition-all ${viewMode === 'timeline' ? filterBtnActive : filterBtnInactive}`}
+                        className={`px-3 py-1 text-sm rounded transition-all justify-center flex ${viewMode === 'timeline' ? filterBtnActive : filterBtnInactive}`}
                         title="Timeline View"
                     >
                         📅 Timeline
