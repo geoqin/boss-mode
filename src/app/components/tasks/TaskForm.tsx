@@ -61,15 +61,20 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
         />
         <button
           type="submit"
-          className="btn-primary !py-3 !px-6 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-primary !py-3 !px-4 sm:!px-6 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           disabled={isSubmitting || !title.trim()}
         >
           {isSubmitting ? (
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Adding...
+              <span className="hidden sm:inline">Adding...</span>
             </span>
-          ) : 'Add'}
+          ) : (
+            <>
+              <span className="hidden sm:inline">Add</span>
+              <span className="sm:hidden">→</span>
+            </>
+          )}
         </button>
       </div>
 
