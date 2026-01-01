@@ -20,21 +20,30 @@ export function BossFace({ tasks, className = "" }: BossFaceProps) {
         return () => clearTimeout(timer)
     }, [])
 
-    // Logic to determine mood
-    const incompleteCount = tasks.filter(t => !t.completed).length
-    const totalCount = tasks.length
-    const completionRate = totalCount > 0 ? (totalCount - incompleteCount) / totalCount : 0
-
-    let emoji = "😎" // Default: Smirking Face with Sunglasses
-    let bgColor = "bg-yellow-400"
-    let shadowColor = "shadow-yellow-400/50"
-
     // Only calculate mood if mounted (client-side) to avoid hydration mismatch
     if (mounted) {
         const today = new Date().toISOString().split('T')[0]
+
+        // Filter tasks to only those due today or earlier (or no due date)
+        // This ensures the boss doesn't get angry about tasks due in the future
+        const relevantTasks = tasks.filter(t => !t.due_date || t.due_date <= today)
+
+        const incompleteCount = relevantTasks.filter(t => !t.completed).length
+        const totalCount = relevantTasks.length
+        const completionRate = totalCount > 0 ? (totalCount - incompleteCount) / totalCount : 0
+
         const hasOverdue = tasks.some(t => !t.completed && t.due_date && t.due_date < today)
 
-        if (totalCount === 0) {
+        if (totalCount === 0 && tasks.length > 0) {
+            // No tasks for today, but future tasks exist (Chilling)
+            emoji = "😎"
+            bgColor = "bg-green-300"
+            shadowColor = "shadow-green-300/50"
+        } else if (totalCount === 0) {
+            // Start / Default (Empty list)
+            emoji = "😎"
+            bgColor = "bg-yellow-400"
+        } else if (incompleteCount === 0) {
             // Start / Default
             emoji = "😎"
             bgColor = "bg-yellow-400"
