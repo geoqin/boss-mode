@@ -20,6 +20,15 @@ export function BossFace({ tasks, className = "" }: BossFaceProps) {
         return () => clearTimeout(timer)
     }, [])
 
+    // Logic to determine mood
+    const incompleteCount = tasks.filter(t => !t.completed).length
+    const totalCount = tasks.length
+    const completionRate = totalCount > 0 ? (totalCount - incompleteCount) / totalCount : 0
+
+    let emoji = "😎" // Default: Smirking Face with Sunglasses
+    let bgColor = "bg-yellow-400"
+    let shadowColor = "shadow-yellow-400/50"
+
     // Only calculate mood if mounted (client-side) to avoid hydration mismatch
     if (mounted) {
         const today = new Date().toISOString().split('T')[0]

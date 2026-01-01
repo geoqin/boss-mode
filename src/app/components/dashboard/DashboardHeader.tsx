@@ -73,13 +73,14 @@ export function DashboardHeader({
                     <h1 className="text-xl font-bold gradient-text">Boss Mode</h1>
                 </Link>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     {/* Theme Toggle */}
                     <button
                         onClick={onThemeToggle}
-                        className={`${textMuted} ${textHover} text-xs transition-colors font-medium`}
+                        className={`${textMuted} ${textHover} text-xs transition-colors font-medium whitespace-nowrap`}
                     >
-                        {isDark ? 'Switch to Light mode' : 'Switch to Dark mode'}
+                        <span className="sm:hidden">{isDark ? 'Light' : 'Dark'}</span>
+                        <span className="hidden sm:inline">{isDark ? 'Switch to Light mode' : 'Switch to Dark mode'}</span>
                     </button>
 
                     <div className={`h-3 w-px ${isDark ? 'bg-white/10' : 'bg-gray-300'}`}></div>
