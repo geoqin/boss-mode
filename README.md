@@ -2,6 +2,8 @@
 
 A personal accountability task manager with stern motivation. Stay on track, get things done, and receive no-nonsense feedback when you slack off.
 
+🚀 **[Live Demo](https://boss-mode.vercel.app/)**
+
 ## Features
 
 - 😤 **Boss Personality** - Dynamic face & messages based on productivity (gets angry if you slack!)
