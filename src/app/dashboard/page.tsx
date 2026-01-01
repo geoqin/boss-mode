@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useBossReminders } from "@/hooks/useBossReminders"
+import { getNextDueDate, shouldRevertToIncomplete } from "@/app/utils/taskUtils"
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -208,33 +209,39 @@ export default function DashboardPage() {
   }
 
   const toggleTask = async (id: string, instanceDate?: string) => {
-    // If instanceDate is provided, it's a recurring virtual instance toggle.
-    // However, the DB model doesn't support "marking a virtual instance as done" separately yet unless we create a new task row for it aka "completing" it.
-    // But the user requested "revert to incomplete" behavior.
-    // The simplified model: toggling the MAIN task.
-    // If user clicks a future virtual instance, what should happen?
-    // Maybe we just complete the main task? Or ignore?
-    // User requirement: "recurring task should be editable... subtasks linked...".
-    // "When marked for completion, they should have small note... next due date... revert."
-    // This implies we toggle the main task state.
-
-    // For now, regardless of instance, we toggle the main task ID.
-    // Future enhancement: If toggling a specific previous instance, maybe archive it?
-
     const task = tasks.find(t => t.id === id)
     if (!task) return
     setError(null)
 
-    const newCompleted = !task.completed
+    // Check for recurring task rollover
+    // If it's a recurring task that should technically be incomplete (visually empty box),
+    // and the user clicks it, it means they are completing the NEXT instance.
+    // In this case, we advance the due date and keep it completed.
+    let newCompleted = !task.completed
+    let newDueDate = task.due_date
 
-    // Only allow completing, not un-completing via simple toggle if it has recurrence logic? 
-    // Actually standard toggle is fine.
+    // We need to import these, assuming they are available or defining them.
+    // Since I can't easily import inside a function replace, I'll rely on the import I'm about to add at the top.
+
+    if (task.recurrence && task.completed && shouldRevertToIncomplete(task)) {
+      // Rollover logic!
+      const nextDate = getNextDueDate(task)
+      if (nextDate) {
+        newDueDate = nextDate.toISOString().split('T')[0]
+        newCompleted = true // Keep it completed, but for the NEW date
+      }
+    }
 
     // Optimistic update
     setTasks(prev =>
       prev.map(t =>
         t.id === id
-          ? { ...t, completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null }
+          ? {
+            ...t,
+            completed: newCompleted,
+            due_date: newDueDate,
+            completed_at: newCompleted ? new Date().toISOString() : null
+          }
           : t
       )
     )
@@ -244,6 +251,7 @@ export default function DashboardPage() {
       .from('tasks')
       .update({
         completed: newCompleted,
+        due_date: newDueDate,
         completed_at: newCompleted ? new Date().toISOString() : null
       })
       .eq('id', id)

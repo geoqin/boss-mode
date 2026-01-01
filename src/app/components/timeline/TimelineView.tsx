@@ -2,6 +2,7 @@
 
 import { Task } from "@/app/types"
 import { useMemo } from "react"
+import { getNextDueDate, shouldRevertToIncomplete } from "@/app/utils/taskUtils"
 
 interface TimelineViewProps {
     tasks: Task[]
@@ -30,7 +31,10 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
         next30Days.setDate(today.getDate() + 30)
 
         tasks.forEach(task => {
-            if (task.completed) return // Don't show completed tasks in timeline (usually) or maybe we typically don't for upcoming logic
+            const needsRevert = shouldRevertToIncomplete(task)
+
+            // Skip if completed AND not needing revert (i.e. actually done for now)
+            if (task.completed && !needsRevert) return
 
             if (!task.recurrence || !task.due_date) {
                 // Non-recurring or no date
@@ -41,13 +45,16 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
                 })
             } else {
                 // Recurring
-                const start = normalizeDate(new Date(task.due_date))
-                const current = new Date(start)
+                // If the task is effectively "reverted" (completed=true but next due is today/past), 
+                // we should start generating instances from the NEXT due date, not the old completed date.
+                let startDate = new Date(task.due_date)
+                if (task.completed && needsRevert) {
+                    const next = getNextDueDate(task)
+                    if (next) startDate = next
+                }
 
-                // If start is in past, bring it to today or future potentially? 
-                // For simplified logic: Start generating from the task's due date. 
-                // If the user hasn't completed it, it's overdue or due today.
-                // We generate instances up to 30 days from TODAY.
+                const start = normalizeDate(startDate)
+                const current = new Date(start)
 
                 // Safety break for infinite loops
                 let count = 0
@@ -55,10 +62,12 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
                     count++
 
                     // Only add if it's within our window (today onwards) OR if it's the original overdue date
+                    // Note: If we shifted start date due to revert, 'start' is the new due date (Today/Overdue)
                     if (current >= today || current.getTime() === start.getTime()) {
                         expanded.push({
                             task,
                             displayDate: new Date(current),
+                            // It's virtual if it's NOT the calculated start date
                             isVirtual: current.getTime() !== start.getTime(),
                             instanceDateStr: current.toISOString().split('T')[0]
                         })
