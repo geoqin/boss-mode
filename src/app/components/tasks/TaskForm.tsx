@@ -48,20 +48,18 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
 
   return (
     <form onSubmit={submit} className="w-full">
-      <div className="flex gap-3">
+      <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100'} border rounded-xl p-2 flex gap-2 transition-all shadow-sm w-full items-center`}>
         <input
           value={title}
           onChange={e => setTitle(e.target.value)}
           onFocus={() => setIsExpanded(true)}
           placeholder="What needs to be done?"
           disabled={isSubmitting}
-          className={isDark
-            ? "input-modern flex-1 disabled:opacity-50"
-            : "flex-1 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl px-4 py-3 focus:outline-none focus:border-purple-500 transition-all placeholder:text-gray-400 disabled:opacity-50"}
+          className={`flex-1 min-w-0 bg-transparent px-3 py-2 text-sm sm:text-base focus:outline-none placeholder:text-gray-400 ${isDark ? 'text-white' : 'text-gray-900'}`}
         />
         <button
           type="submit"
-          className="btn-primary !py-3 !px-4 sm:!px-6 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+          className={`btn-primary !py-2 !px-3 sm:!px-6 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 rounded-lg flex items-center justify-center h-10`}
           disabled={isSubmitting || !title.trim()}
         >
           {isSubmitting ? (
@@ -72,7 +70,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           ) : (
             <>
               <span className="hidden sm:inline">Add</span>
-              <span className="sm:hidden">→</span>
+              <span className="sm:inline-block">→</span>
             </>
           )}
         </button>
