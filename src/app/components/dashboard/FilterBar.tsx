@@ -13,6 +13,7 @@ interface FilterBarProps {
     onViewModeChange: (mode: 'list' | 'timeline') => void
     onAddCategory: (name: string) => void
     onManageCategories?: () => void
+    onShowHistory?: () => void
 }
 
 export function FilterBar({
@@ -25,7 +26,8 @@ export function FilterBar({
     onFilterCategoryChange,
     onViewModeChange,
     onAddCategory,
-    onManageCategories
+    onManageCategories,
+    onShowHistory
 }: FilterBarProps) {
     const textMuted = isDark ? "text-white/40" : "text-gray-500"
     const textHover = isDark ? "hover:text-white/60" : "hover:text-gray-700"
@@ -71,6 +73,15 @@ export function FilterBar({
                     >
                         📅 Timeline
                     </button>
+                    {onShowHistory && (
+                        <button
+                            onClick={onShowHistory}
+                            className={`px-3 py-1 text-sm rounded transition-all justify-center flex ${filterBtnInactive}`}
+                            title="View completed tasks history"
+                        >
+                            🕰️ History
+                        </button>
+                    )}
                 </div>
             </div>
 

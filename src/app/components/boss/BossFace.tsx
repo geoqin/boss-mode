@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Task } from "@/app/types"
+import { getLocalTodayDate } from "@/app/utils/dateUtils"
 
 interface BossFaceProps {
     tasks: Task[]
@@ -31,89 +32,93 @@ export function BossFace({ tasks, className = "" }: BossFaceProps) {
 
     // Only calculate mood if mounted (client-side) to avoid hydration mismatch
     if (mounted) {
-        const today = new Date().toISOString().split('T')[0]
+        const today = getLocalTodayDate()
 
-        // Filter tasks to only those due today or earlier (or no due date)
-        // This ensures the boss doesn't get angry about tasks due in the future
-        const relevantTasks = tasks.filter(t => !t.due_date || t.due_date <= today)
+        // --- Boss Mood Logic Refactor ---
+        // 1. Previous tasks (due < today) -> IGNORED for mood (as per user request)
+        // 2. Today's tasks (due == today) -> Main driver for mood
+        // 3. Future tasks (due > today) -> Used for "Chill" state check
 
-        const incompleteCount = relevantTasks.filter(t => !t.completed).length
-        const totalCount = relevantTasks.length
+        // Relevant tasks for mood = Tasks due Today (or no due date)
+        const activeTasksForMood = tasks.filter(t => !t.due_date || (t.due_date.split('T')[0] === today))
+
+        const incompleteCount = activeTasksForMood.filter(t => !t.completed).length
+        const totalCount = activeTasksForMood.length
         const completionRate = totalCount > 0 ? (totalCount - incompleteCount) / totalCount : 0
 
-        const hasOverdue = tasks.some(t => !t.completed && t.due_date && t.due_date < today)
-
-        // Calculate future-only tasks (excluding recurring tasks - only count today's instance for recurring)
+        // Future-only check: Are there any tasks at all for today?
+        // Reuse the logic: If NO active tasks today, check if future tasks exist.
         const futureTasks = tasks.filter(t => {
-            // If it's a recurring task, it doesn't count as a "future task" for chilling purposes
-            // because today's instance (if any) is what matters
-            if (t.recurrence) return false
-            // Non-recurring tasks due in the future
-            return t.due_date && t.due_date > today
+            if (t.recurrence) return false // Recurring don't count as "future backlog"
+            // Use split('T')[0] to ensure we only check dates properly strictly > today
+            return t.due_date && t.due_date.split('T')[0] > today
         })
-        const incompleteFutureTasks = futureTasks.filter(t => !t.completed)
-        const onlyFutureTasksExist = totalCount === 0 && futureTasks.length > 0
 
-        if (onlyFutureTasksExist) {
-            // No tasks for today, but future (non-recurring) tasks exist
-            if (incompleteFutureTasks.length === 0) {
-                // All future tasks are complete - Star-struck!
+        const hasWorkToday = totalCount > 0
+        const hasFutureWork = futureTasks.length > 0
+        const allFutureWorkDone = futureTasks.every(t => t.completed)
+
+        // Determine Mood
+        if (!hasWorkToday) {
+            // No work today!
+            if (hasFutureWork && !allFutureWorkDone) {
+                // Future tasks exist - Chill
+                emoji = "😎"
+                bgColor = "bg-green-300"
+                shadowColor = "shadow-green-300/50"
+            } else if (hasFutureWork && allFutureWorkDone) {
+                // Future work exists and is ALL DONE - Star Struck
                 emoji = "🤩"
                 bgColor = "bg-yellow-300"
                 shadowColor = "shadow-yellow-300/50"
             } else {
-                // Still have future tasks to do - Chilling
+                // No work at all - Default Chill
                 emoji = "😎"
-                bgColor = "bg-green-300"
-                shadowColor = "shadow-green-300/50"
+                bgColor = "bg-yellow-400"
+                shadowColor = "shadow-yellow-400/50"
             }
-        } else if (totalCount === 0) {
-            // No tasks at all (empty list) - Default chill
-            emoji = "😎"
-            bgColor = "bg-yellow-400"
-            shadowColor = "shadow-yellow-400/50"
         } else if (incompleteCount === 0) {
-            // All today's tasks done - Star-struck!
+            // Worked today and finished everything!
             emoji = "🤩"
             bgColor = "bg-yellow-300"
             shadowColor = "shadow-yellow-300/50"
-        } else if (hasOverdue) {
-            // Overdue tasks - Angry/Pouting
-            emoji = "😡"
-            bgColor = "bg-red-400"
-            shadowColor = "shadow-red-400/50"
-        } else if (currentHour !== null && currentHour >= 22) {
-            // Getting late (10pm+) - Hot face/Sweating
-            emoji = "🥵"
-            bgColor = "bg-red-300"
-            shadowColor = "shadow-red-300/50"
-        } else if (currentHour !== null && currentHour >= 0 && currentHour < 5) {
-            // Working super late (midnight to 5am) - Saluting/Respect
-            emoji = "🫡"
-            bgColor = "bg-blue-300"
-            shadowColor = "shadow-blue-300/50"
         } else {
-            // Progress-based moods
-            if (completionRate < 0.33) {
-                // Low progress - Angry
-                emoji = "😡"
-                bgColor = "bg-red-400"
-                shadowColor = "shadow-red-400/50"
-            } else if (incompleteCount === 1 || completionRate > 0.8) {
-                // Almost there - Pumped Up/Encouragement
-                emoji = "😤"
-                bgColor = "bg-orange-300"
-                shadowColor = "shadow-orange-300/50"
-            } else if (completionRate < 0.5 && totalCount > 3) {
-                // Slow progress with many tasks - Stern/Unamused
-                emoji = "😒"
-                bgColor = "bg-orange-400"
-                shadowColor = "shadow-orange-400/50"
+            // Work to do today!
+            // Note: Overdue tasks are explicitly IGNORED for angry face here.
+
+            if (currentHour !== null && currentHour >= 22) {
+                // Late night - Hot face
+                emoji = "🥵"
+                bgColor = "bg-red-300"
+                shadowColor = "shadow-red-300/50"
+            } else if (currentHour !== null && currentHour >= 0 && currentHour < 5) {
+                // Super late - Respect
+                emoji = "🫡"
+                bgColor = "bg-blue-300"
+                shadowColor = "shadow-blue-300/50"
             } else {
-                // Middle / Working - Focused
-                emoji = "🧐"
-                bgColor = "bg-yellow-400"
-                shadowColor = "shadow-yellow-400/50"
+                // Progress moods
+                if (completionRate < 0.33) {
+                    // Just starting / Low progress -> Angry
+                    emoji = "😡"
+                    bgColor = "bg-red-400"
+                    shadowColor = "shadow-red-400/50"
+                } else if (incompleteCount === 1 || completionRate > 0.8) {
+                    // Almost there -> Pumped
+                    emoji = "😤"
+                    bgColor = "bg-orange-300"
+                    shadowColor = "shadow-orange-300/50"
+                } else if (completionRate < 0.5 && totalCount > 3) {
+                    // Lagging behind -> Stern
+                    emoji = "😒"
+                    bgColor = "bg-orange-400"
+                    shadowColor = "shadow-orange-400/50"
+                } else {
+                    // Working -> Focused
+                    emoji = "🧐"
+                    bgColor = "bg-yellow-400"
+                    shadowColor = "shadow-yellow-400/50"
+                }
             }
         }
     }

@@ -15,6 +15,8 @@ import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useBossReminders } from "@/hooks/useBossReminders"
 import { getNextDueDate, shouldRevertToIncomplete } from "@/app/utils/taskUtils"
+import { getLocalTodayDate } from "@/app/utils/dateUtils"
+import { TaskHistoryModal } from "../components/tasks/TaskHistoryModal"
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -34,6 +36,7 @@ export default function DashboardPage() {
   const [taskSubtasks, setTaskSubtasks] = useState<Subtask[]>([])
   const [taskComments, setTaskComments] = useState<Comment[]>([])
   const [showCategoryManager, setShowCategoryManager] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   const { user, signOut, loading: authLoading } = useAuth()
   const supabase = useState(() => createClient())[0]
@@ -261,6 +264,14 @@ export default function DashboardPage() {
     }
   }
 
+  // Restore task from history (un-complete)
+  const restoreTask = async (id: string) => {
+    const task = tasks.find(t => t.id === id)
+    if (!task) return
+    // Simple toggle back to incomplete
+    await toggleTask(id)
+  }
+
   const deleteTask = async (id: string) => {
     const task = tasks.find(t => t.id === id)
     if (!task) return
@@ -383,20 +394,93 @@ export default function DashboardPage() {
     setEditingInstanceDate(instanceDate || null)
   }
 
-  // Computed values
-  const completedCount = tasks.filter(t => t.completed).length
-  const totalCount = tasks.length
+  // --- Filtering Logic for History ---
+
+  const today = getLocalTodayDate()
+
+  // Identify history tasks (completed on previous days)
+  const historyTasks = tasks.filter(t => {
+    if (!t.completed) return false
+
+    // If completed_at exists, check if it's before today
+    if (t.completed_at) {
+      return t.completed_at.split('T')[0] < today
+    }
+
+    // Fallback: if no completed_at, check due_date
+    if (t.due_date) {
+      return t.due_date < today
+    }
+
+    // If neither (legacy), assume it's history if completed
+    return true
+  })
+
+  // Current tasks (Active OR Completed Today)
+  // We exclude history tasks AND future recurring tasks (as they shouldn't clutter the list yet)
+  const currentTasks = tasks.filter(t => {
+    // 1. Exclude History
+    if (historyTasks.includes(t)) return false
+
+    // 2. Exclude Future Recurring Tasks
+    // If it's recurring and due in the future, hide it until due date (rollover)
+    // Note: split('T')[0] ensures we compare only the date part, avoiding time discrepancies
+    if (t.recurrence && t.due_date && t.due_date.split('T')[0] > today) return false
+
+    return true
+  })
+
+  const completedCount = currentTasks.filter(t => t.completed).length
+  const totalCount = currentTasks.length
   const isDark = theme === 'dark'
   const displayName = profile.first_name
     ? `${profile.first_name} ${profile.last_name || ''}`.trim()
     : user?.email || ''
 
-  const filteredTasks = tasks.filter(task => {
-    if (filterStatus === 'active' && task.completed) return false
-    if (filterStatus === 'completed' && !task.completed) return false
-    if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
-    return true
-  })
+  // Filter and Sort for Main List
+  const priorityScore = { high: 3, medium: 2, low: 1 }
+
+  const filteredTasks = currentTasks
+    .filter(task => {
+      if (filterStatus === 'active' && task.completed) return false
+      if (filterStatus === 'completed' && !task.completed) return false
+      if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
+      return true
+    })
+    .sort((a, b) => {
+      // 1. Priority (High to Low)
+      const pA = priorityScore[a.priority || 'medium']
+      const pB = priorityScore[b.priority || 'medium']
+      if (pA !== pB) return pB - pA
+
+      // 2. Due Date (Ascending - Earliest first)
+      // Null due dates go last
+      if (a.due_date && b.due_date) {
+        if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date)
+      } else if (a.due_date) {
+        return -1 // a has date, comes first
+      } else if (b.due_date) {
+        return 1 // b has date, comes first
+      }
+
+      // 3. Created Date (Descending - Newest first)
+      // Or should it be Ascending to show oldest created first? 
+      // User said "by date created". Usually oldest first in todo lists prevents stagnation? 
+      // Let's go with Ascending (Oldest first) for consistent "clearing the queue" feel.
+      return a.created_at.localeCompare(b.created_at)
+    })
+
+  // Timeline should show ALL active tasks, including future recurring ones
+  // So we just exclude history (completed past tasks)
+  const timelineTasks = tasks.filter(t => !historyTasks.includes(t))
+    .filter(task => {
+      // Apply category filter if active
+      if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
+      // Apply status filter if active (though usually timeline shows all)
+      if (filterStatus === 'active' && task.completed) return false
+      if (filterStatus === 'completed' && !task.completed) return false
+      return true
+    })
 
   // Theme styles
   const containerClass = isDark
@@ -427,6 +511,7 @@ export default function DashboardPage() {
         )}
 
         <main className="relative z-10 max-w-xl mx-auto px-6 py-2">
+          {/* Pass currentTasks to DashboardHeader so BossFace ignores history tasks */}
           <DashboardHeader
             user={user}
             displayName={displayName}
@@ -435,7 +520,7 @@ export default function DashboardPage() {
             onThemeToggle={toggleTheme}
             onNotificationToggle={toggleNotifications}
             onSignOut={handleSignOut}
-            tasks={tasks}
+            tasks={currentTasks}
           />
 
           {/* Error message */}
@@ -462,6 +547,7 @@ export default function DashboardPage() {
             onViewModeChange={setViewMode}
             onAddCategory={addCategory}
             onManageCategories={() => setShowCategoryManager(true)}
+            onShowHistory={() => setShowHistory(true)}
           />
 
           {/* Main content card */}
@@ -479,7 +565,7 @@ export default function DashboardPage() {
                 />
               ) : (
                 <TimelineView
-                  tasks={filteredTasks}
+                  tasks={timelineTasks}
                   onToggle={toggleTask}
                   onDelete={deleteTask}
                   onEdit={handleEditTask}
@@ -526,6 +612,19 @@ export default function DashboardPage() {
               onClose={() => setShowCategoryManager(false)}
               onUpdateCategory={updateCategory}
               onDeleteCategory={deleteCategory}
+            />
+          )
+        }
+
+        {/* Task History Modal */}
+        {
+          showHistory && (
+            <TaskHistoryModal
+              historyTasks={historyTasks}
+              isDark={isDark}
+              onClose={() => setShowHistory(false)}
+              onDelete={deleteTask}
+              onRestore={restoreTask}
             />
           )
         }
