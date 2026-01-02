@@ -1,6 +1,21 @@
 import { useState, useRef, useEffect } from "react"
 import { NewTask, Category } from "@/app/types"
 import { getLocalTodayDate } from "@/app/utils/dateUtils"
+import {
+  TextField,
+  Button,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Box,
+  Stack,
+  Collapse,
+  Paper,
+  CircularProgress,
+} from "@mui/material"
+import { DatePicker, TimePicker } from "@mui/x-date-pickers"
+import { parse, format, isAfter, addDays, startOfDay } from "date-fns"
 
 interface TaskFormProps {
   onAdd: (task: NewTask) => Promise<void> | void
@@ -10,12 +25,12 @@ interface TaskFormProps {
 
 export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
   const [title, setTitle] = useState("")
-  const [dueDate, setDueDate] = useState("")
-  const [dueTime, setDueTime] = useState("")
+  const [dueDate, setDueDate] = useState<Date | null>(null)
+  const [dueTime, setDueTime] = useState<Date | null>(null)
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium")
   const [recurrence, setRecurrence] = useState<"daily" | "weekly" | "monthly" | "">("")
   const [categoryId, setCategoryId] = useState("")
-  const [reminder, setReminder] = useState<string>("") // string for select, parsed to number
+  const [reminder, setReminder] = useState<string>("")
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -32,48 +47,39 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
     }
   }, [isSubmitting])
 
-  const isDark = theme === 'dark'
-  const inputClass = isDark
-    ? "bg-white/5 border-white/10 text-white focus:border-purple-500/50"
-    : "bg-gray-50 border-gray-200 text-gray-900 focus:border-purple-500"
-
-  const labelClass = isDark ? "text-white/60 text-xs font-medium" : "text-gray-500 text-xs font-medium"
-
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || isSubmitting) return
 
     setIsSubmitting(true)
     try {
-      let finalDueDate = dueDate || null
+      let finalDueDate = dueDate
 
       // Smart date logic if time is set but date is not
       if (dueTime && !finalDueDate) {
-        const today = getLocalTodayDate()
+        const today = startOfDay(new Date())
         const now = new Date()
-        const [hours, minutes] = dueTime.split(':').map(Number)
 
-        // Compare time
-        const currentHours = now.getHours()
-        const currentMinutes = now.getMinutes()
+        // If the set time is after current time, use today; otherwise tomorrow
+        const setTimeToday = new Date(today)
+        setTimeToday.setHours(dueTime.getHours(), dueTime.getMinutes())
 
-        if (hours > currentHours || (hours === currentHours && minutes > currentMinutes)) {
-          finalDueDate = today // Today
+        if (isAfter(setTimeToday, now)) {
+          finalDueDate = today
         } else {
-          // Tomorrow
-          const tomorrow = new Date(now)
-          tomorrow.setDate(tomorrow.getDate() + 1)
-          finalDueDate = tomorrow.toISOString().split('T')[0]
+          finalDueDate = addDays(today, 1)
         }
       }
 
-      // Combine date and time
-      let isoDate = null
+      // Combine date and time into ISO string
+      let isoDate: string | null = null
       if (finalDueDate) {
         if (dueTime) {
-          isoDate = `${finalDueDate}T${dueTime}:00`
+          const combined = new Date(finalDueDate)
+          combined.setHours(dueTime.getHours(), dueTime.getMinutes(), 0)
+          isoDate = combined.toISOString()
         } else {
-          isoDate = finalDueDate // Just date
+          isoDate = format(finalDueDate, 'yyyy-MM-dd')
         }
       }
 
@@ -87,8 +93,8 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
       })
 
       setTitle("")
-      setDueDate("")
-      setDueTime("")
+      setDueDate(null)
+      setDueTime(null)
       setPriority("medium")
       setRecurrence("")
       setCategoryId("")
@@ -99,132 +105,141 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
     }
   }
 
-  // Reminder is only available if due date AND time are set (or at least inferred, but UI enforces set)
-  // Logic check: "If the due date and time is not set, this option is not available."
-  // Note: We infer date if time is set, so effectively if Time is set, we can have reminder.
   const canSetReminder = !!dueTime
 
   return (
-    <form ref={formRef} onSubmit={submit} className="w-full">
-      <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100'} border rounded-xl p-2 flex gap-2 transition-all shadow-sm w-full items-center`}>
-        <input
+    <Paper
+      component="form"
+      ref={formRef}
+      onSubmit={submit}
+      elevation={0}
+      sx={{
+        p: 1,
+        bgcolor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'background.paper',
+        border: 1,
+        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'divider',
+        borderRadius: 3,
+      }}
+    >
+      <Stack direction="row" spacing={1} alignItems="center">
+        <TextField
           value={title}
           onChange={e => setTitle(e.target.value)}
           onFocus={() => setIsExpanded(true)}
           placeholder="What needs to be done?"
           disabled={isSubmitting}
-          className={`flex-1 min-w-0 bg-transparent px-3 py-2 text-sm sm:text-base focus:outline-none placeholder:text-gray-400 ${isDark ? 'text-white' : 'text-gray-900'}`}
+          fullWidth
+          size="small"
+          variant="standard"
+          InputProps={{
+            disableUnderline: true,
+            sx: { px: 1.5, py: 1 }
+          }}
         />
-        <button
+        <Button
           type="submit"
-          className={`btn-primary !py-2 !px-3 sm:!px-6 disabled:opacity-50 disabled:cursor-not-allowed shrink-0 rounded-lg flex items-center justify-center h-10`}
+          variant="contained"
           disabled={isSubmitting || !title.trim()}
+          sx={{ minWidth: 80, height: 40 }}
         >
           {isSubmitting ? (
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              <span className="hidden sm:inline">Adding...</span>
-            </span>
+            <CircularProgress size={20} color="inherit" />
           ) : (
-            <>
-              <span className="hidden sm:inline">Add</span>
-              <span className="sm:inline-block">→</span>
-            </>
+            <>Add →</>
           )}
-        </button>
-      </div>
+        </Button>
+      </Stack>
 
-      {isExpanded && (
-        <div className="flex flex-wrap gap-4 mt-4 animate-fade-in px-1">
+      <Collapse in={isExpanded}>
+        <Stack
+          direction="row"
+          flexWrap="wrap"
+          gap={2}
+          sx={{ mt: 2, px: 1 }}
+        >
           {/* Due Date */}
-          <div className="flex flex-col gap-1">
-            <span className={labelClass}>Due Date</span>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-              disabled={isSubmitting}
-              className={`${inputClass} border rounded px-2 py-1 text-sm focus:outline-none disabled:opacity-50`}
-            />
-          </div>
+          <DatePicker
+            label="Due Date"
+            value={dueDate}
+            onChange={(newValue) => setDueDate(newValue)}
+            disabled={isSubmitting}
+            slotProps={{
+              textField: { size: 'small', sx: { minWidth: 150 } }
+            }}
+          />
 
           {/* Time */}
-          <div className="flex flex-col gap-1">
-            <span className={labelClass}>Time</span>
-            <input
-              type="time"
-              value={dueTime}
-              onChange={e => setDueTime(e.target.value)}
-              disabled={isSubmitting}
-              className={`${inputClass} border rounded px-2 py-1 text-sm focus:outline-none disabled:opacity-50`}
-            />
-          </div>
+          <TimePicker
+            label="Time"
+            value={dueTime}
+            onChange={(newValue) => setDueTime(newValue)}
+            disabled={isSubmitting}
+            slotProps={{
+              textField: { size: 'small', sx: { minWidth: 130 } }
+            }}
+          />
 
-          {/* Reminder - Only if Time is set */}
-          <div className={`flex flex-col gap-1 ${!canSetReminder ? 'opacity-50' : ''}`}>
-            <span className={labelClass}>Remind Me</span>
-            <select
+          {/* Reminder */}
+          <FormControl size="small" sx={{ minWidth: 160 }} disabled={!canSetReminder || isSubmitting}>
+            <InputLabel>Remind Me</InputLabel>
+            <Select
               value={reminder}
               onChange={e => setReminder(e.target.value)}
-              disabled={isSubmitting || !canSetReminder}
-              className={`${inputClass} border rounded px-2 py-1 text-sm focus:outline-none disabled:opacity-50 cursor-pointer`}
+              label="Remind Me"
             >
-              <option value="">None</option>
-              <option value="15">15 minutes before</option>
-              <option value="30">30 minutes before</option>
-              <option value="60">1 hour before</option>
-              <option value="1440">1 day before</option>
-            </select>
-          </div>
+              <MenuItem value="">None</MenuItem>
+              <MenuItem value="15">15 minutes before</MenuItem>
+              <MenuItem value="30">30 minutes before</MenuItem>
+              <MenuItem value="60">1 hour before</MenuItem>
+              <MenuItem value="1440">1 day before</MenuItem>
+            </Select>
+          </FormControl>
 
           {/* Priority */}
-          <div className="flex flex-col gap-1">
-            <span className={labelClass}>Priority</span>
-            <select
+          <FormControl size="small" sx={{ minWidth: 120 }} disabled={isSubmitting}>
+            <InputLabel>Priority</InputLabel>
+            <Select
               value={priority}
               onChange={e => setPriority(e.target.value as "low" | "medium" | "high")}
-              disabled={isSubmitting}
-              className={`${inputClass} border rounded px-2 py-1 text-sm focus:outline-none disabled:opacity-50`}
+              label="Priority"
             >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
+              <MenuItem value="low">Low</MenuItem>
+              <MenuItem value="medium">Medium</MenuItem>
+              <MenuItem value="high">High</MenuItem>
+            </Select>
+          </FormControl>
 
           {/* Recurrence */}
-          <div className="flex flex-col gap-1">
-            <span className={labelClass}>Repeat</span>
-            <select
+          <FormControl size="small" sx={{ minWidth: 130 }} disabled={isSubmitting}>
+            <InputLabel>Repeat</InputLabel>
+            <Select
               value={recurrence}
-              onChange={e => setRecurrence((e.target.value || "") as "daily" | "weekly" | "monthly" | "")}
-              disabled={isSubmitting}
-              className={`${inputClass} border rounded px-2 py-1 text-sm focus:outline-none disabled:opacity-50`}
+              onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")}
+              label="Repeat"
             >
-              <option value="">No Repeat</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
+              <MenuItem value="">No Repeat</MenuItem>
+              <MenuItem value="daily">Daily</MenuItem>
+              <MenuItem value="weekly">Weekly</MenuItem>
+              <MenuItem value="monthly">Monthly</MenuItem>
+            </Select>
+          </FormControl>
 
           {/* Category */}
-          <div className="flex flex-col gap-1">
-            <span className={labelClass}>Category</span>
-            <select
+          <FormControl size="small" sx={{ minWidth: 130 }} disabled={isSubmitting}>
+            <InputLabel>Category</InputLabel>
+            <Select
               value={categoryId}
               onChange={e => setCategoryId(e.target.value)}
-              disabled={isSubmitting}
-              className={`${inputClass} border rounded px-2 py-1 text-sm focus:outline-none disabled:opacity-50`}
+              label="Category"
             >
-              <option value="">No Category</option>
+              <MenuItem value="">No Category</MenuItem>
               {categories.map(cat => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
               ))}
-            </select>
-          </div>
-        </div>
-      )}
-    </form>
+            </Select>
+          </FormControl>
+        </Stack>
+      </Collapse>
+    </Paper>
   )
 }
