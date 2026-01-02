@@ -5,6 +5,7 @@ import { User } from "@supabase/supabase-js"
 import { Task } from "@/app/types"
 import { BossFace } from "../boss/BossFace"
 import { useState, useEffect } from "react"
+import { getLocalTodayDate } from "@/app/utils/dateUtils"
 
 interface DashboardHeaderProps {
     user: User | null
@@ -39,9 +40,13 @@ export function DashboardHeader({
     const textMuted = isDark ? "text-white/40" : "text-gray-500"
     const textHover = isDark ? "hover:text-white/60" : "hover:text-gray-700"
 
-    const completedCount = tasks.filter(t => t.completed).length
-    const incompleteCount = tasks.length - completedCount
-    const totalCount = tasks.length
+    // Filter tasks for message: Only count tasks due Today or Earlier (or no due date)
+    const today = getLocalTodayDate()
+    const relevantTasks = tasks.filter(t => !t.due_date || t.due_date.split('T')[0] <= today)
+
+    const completedCount = relevantTasks.filter(t => t.completed).length
+    const totalCount = relevantTasks.length
+    const incompleteCount = totalCount - completedCount
 
     // Boss Message Logic
     let message = "Good work."

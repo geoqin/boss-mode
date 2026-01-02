@@ -40,7 +40,8 @@ export function BossFace({ tasks, className = "" }: BossFaceProps) {
         // 3. Future tasks (due > today) -> Used for "Chill" state check
 
         // Relevant tasks for mood = Tasks due Today (or no due date)
-        const activeTasksForMood = tasks.filter(t => !t.due_date || (t.due_date.split('T')[0] === today))
+        // Relevant tasks for mood = Tasks due Today or Earlier (Overdue)
+        const activeTasksForMood = tasks.filter(t => !t.due_date || (t.due_date.split('T')[0] <= today))
 
         const incompleteCount = activeTasksForMood.filter(t => !t.completed).length
         const totalCount = activeTasksForMood.length
