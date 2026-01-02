@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { NewTask, Category } from "@/app/types"
 
 interface TaskFormProps {
@@ -15,6 +15,19 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
   const [categoryId, setCategoryId] = useState("")
   const [isExpanded, setIsExpanded] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (formRef.current && !formRef.current.contains(event.target as Node) && !isSubmitting) {
+        setIsExpanded(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isSubmitting])
 
   const isDark = theme === 'dark'
   const inputClass = isDark
@@ -47,7 +60,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
   }
 
   return (
-    <form onSubmit={submit} className="w-full">
+    <form ref={formRef} onSubmit={submit} className="w-full">
       <div className={`${isDark ? 'bg-white/5 border-white/10' : 'bg-white border-gray-100'} border rounded-xl p-2 flex gap-2 transition-all shadow-sm w-full items-center`}>
         <input
           value={title}
