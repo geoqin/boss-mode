@@ -119,24 +119,12 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
 
   // Icon for mobile fields
   const FieldIcon = ({ icon, label }: { icon: React.ReactNode, label: string }) => (
-    isMobile ? (
-      <Tooltip title={label} arrow>
-        <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', mr: 0.5 }}>
-          {icon}
-        </Box>
-      </Tooltip>
-    ) : null
+    <Tooltip title={label} arrow>
+      <Box sx={{ color: 'text.secondary', display: 'flex', alignItems: 'center', mr: 0.5 }}>
+        {icon}
+      </Box>
+    </Tooltip>
   )
-
-  // Compact picker styles for mobile - prevent overflow
-  const pickerSx = {
-    '& .MuiInputBase-root': {
-      borderRadius: 2,
-    },
-    '& .MuiOutlinedInput-notchedOutline': {
-      borderRadius: 2,
-    },
-  }
 
   return (
     <Paper
@@ -184,35 +172,34 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
       <Collapse in={isExpanded}>
         <Box sx={{ mt: 2, px: 1 }}>
           {isMobile ? (
-            // Mobile: Wrap freely with icons
-            <Stack direction="row" flexWrap="wrap" gap={1}>
+            // Mobile: Stacked rows
+            <Stack spacing={1.5}>
+              {/* Row 1: Due Date (full width) */}
               <Stack direction="row" alignItems="center">
                 <FieldIcon icon={<CalendarMonth fontSize="small" />} label="Due Date" />
                 <DatePicker
                   value={dueDate}
                   onChange={setDueDate}
                   disabled={isSubmitting}
-                  slotProps={{
-                    textField: { size: 'small', sx: { width: 110, ...pickerSx } }
-                  }}
+                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
                 />
               </Stack>
 
+              {/* Row 2: Time (full width) */}
               <Stack direction="row" alignItems="center">
                 <FieldIcon icon={<AccessTime fontSize="small" />} label="Time" />
                 <TimePicker
                   value={dueTime}
                   onChange={setDueTime}
                   disabled={isSubmitting}
-                  slotProps={{
-                    textField: { size: 'small', sx: { width: 100, ...pickerSx } }
-                  }}
+                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
                 />
               </Stack>
 
-              <Stack direction="row" alignItems="center">
+              {/* Row 3: Reminder + Priority */}
+              <Stack direction="row" spacing={1} alignItems="center">
                 <FieldIcon icon={<NotificationsActive fontSize="small" />} label="Remind" />
-                <FormControl size="small" sx={{ width: 70 }} disabled={!canSetReminder || isSubmitting}>
+                <FormControl size="small" sx={{ flex: 1 }} disabled={!canSetReminder || isSubmitting}>
                   <Select value={reminder} onChange={e => setReminder(e.target.value)} displayEmpty>
                     <MenuItem value="">—</MenuItem>
                     <MenuItem value="15">15m</MenuItem>
@@ -221,11 +208,8 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                     <MenuItem value="1440">1d</MenuItem>
                   </Select>
                 </FormControl>
-              </Stack>
-
-              <Stack direction="row" alignItems="center">
                 <FieldIcon icon={<Flag fontSize="small" />} label="Priority" />
-                <FormControl size="small" sx={{ width: 60 }} disabled={isSubmitting}>
+                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
                   <Select value={priority} onChange={e => setPriority(e.target.value as "low" | "medium" | "high")}>
                     <MenuItem value="low">🟢</MenuItem>
                     <MenuItem value="medium">🟡</MenuItem>
@@ -234,9 +218,19 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                 </FormControl>
               </Stack>
 
-              <Stack direction="row" alignItems="center">
+              {/* Row 4: Category + Repeat */}
+              <Stack direction="row" spacing={1} alignItems="center">
+                <FieldIcon icon={<Label fontSize="small" />} label="Category" />
+                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                  <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} displayEmpty>
+                    <MenuItem value="">—</MenuItem>
+                    {categories.map(cat => (
+                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
                 <FieldIcon icon={<Repeat fontSize="small" />} label="Repeat" />
-                <FormControl size="small" sx={{ width: 60 }} disabled={isSubmitting}>
+                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
                   <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} displayEmpty>
                     <MenuItem value="">—</MenuItem>
                     <MenuItem value="daily">D</MenuItem>
@@ -245,21 +239,9 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                   </Select>
                 </FormControl>
               </Stack>
-
-              <Stack direction="row" alignItems="center">
-                <FieldIcon icon={<Label fontSize="small" />} label="Category" />
-                <FormControl size="small" sx={{ width: 80 }} disabled={isSubmitting}>
-                  <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} displayEmpty>
-                    <MenuItem value="">—</MenuItem>
-                    {categories.map(cat => (
-                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Stack>
             </Stack>
           ) : (
-            // Desktop: Organized rows
+            // Desktop: Organized rows with proper sizing
             <Stack spacing={2}>
               {/* Row 1: Due Date + Time */}
               <Stack direction="row" spacing={2}>
@@ -279,9 +261,9 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                 />
               </Stack>
 
-              {/* Row 2: Reminder + Priority */}
+              {/* Row 2: Reminder (wider) + Priority (narrower) */}
               <Stack direction="row" spacing={2}>
-                <FormControl size="small" sx={{ flex: 1 }} disabled={!canSetReminder || isSubmitting}>
+                <FormControl size="small" sx={{ flex: 2 }} disabled={!canSetReminder || isSubmitting}>
                   <InputLabel>Remind Me</InputLabel>
                   <Select value={reminder} onChange={e => setReminder(e.target.value)} label="Remind Me">
                     <MenuItem value="">None</MenuItem>
@@ -301,7 +283,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                 </FormControl>
               </Stack>
 
-              {/* Row 3: Repeat + Category */}
+              {/* Row 3: Repeat (narrower) + Category (wider) */}
               <Stack direction="row" spacing={2}>
                 <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
                   <InputLabel>Repeat</InputLabel>
@@ -312,7 +294,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                     <MenuItem value="monthly">Monthly</MenuItem>
                   </Select>
                 </FormControl>
-                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                <FormControl size="small" sx={{ flex: 2 }} disabled={isSubmitting}>
                   <InputLabel>Category</InputLabel>
                   <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} label="Category">
                     <MenuItem value="">No Category</MenuItem>
