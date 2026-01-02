@@ -20,6 +20,7 @@ export default function AccountPage() {
     const [error, setError] = useState<string | null>(null)
 
     // Password State
+    const [currentPassword, setCurrentPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
     const [securityMessage, setSecurityMessage] = useState<string | null>(null)
@@ -87,28 +88,47 @@ export default function AccountPage() {
 
     const handlePasswordUpdate = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!user) return
+        if (!user || !user.email) return
         setSecurityMessage(null)
         setSecurityError(null)
 
+        if (!currentPassword) {
+            setSecurityError("Please enter your current password")
+            return
+        }
         if (newPassword !== confirmPassword) {
-            setSecurityError("Passwords do not match")
+            setSecurityError("New passwords do not match")
             return
         }
         if (newPassword.length < 6) {
-            setSecurityError("Password must be at least 6 characters")
+            setSecurityError("New password must be at least 6 characters")
             return
         }
 
         setIsUpdatingPassword(true)
-        const { error } = await supabase.auth.updateUser({
+
+        // 1. Verify Current Password via Re-authentication
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: user.email,
+            password: currentPassword
+        })
+
+        if (signInError) {
+            setSecurityError("Incorrect current password")
+            setIsUpdatingPassword(false)
+            return
+        }
+
+        // 2. Update Password
+        const { error: updateError } = await supabase.auth.updateUser({
             password: newPassword
         })
 
-        if (error) {
-            setSecurityError(error.message)
+        if (updateError) {
+            setSecurityError(updateError.message)
         } else {
             setSecurityMessage("Password updated successfully!")
+            setCurrentPassword("")
             setNewPassword("")
             setConfirmPassword("")
         }
@@ -258,6 +278,19 @@ export default function AccountPage() {
                             <form onSubmit={handlePasswordUpdate} className="space-y-4">
                                 <div>
                                     <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                                        Current Password
+                                    </label>
+                                    <input
+                                        type="password"
+                                        value={currentPassword}
+                                        onChange={e => setCurrentPassword(e.target.value)}
+                                        className={`w-full px-4 py-3 rounded-xl border ${inputClass} focus:outline-none transition-all`}
+                                        placeholder="Enter current password"
+                                    />
+                                </div>
+                                <div className="border-t border-white/5 my-4"></div>
+                                <div>
+                                    <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
                                         New Password
                                     </label>
                                     <input
@@ -283,7 +316,7 @@ export default function AccountPage() {
                                 <div className="pt-2 flex justify-end">
                                     <button
                                         type="submit"
-                                        disabled={isUpdatingPassword || !newPassword}
+                                        disabled={isUpdatingPassword || !newPassword || !currentPassword}
                                         className="btn-primary px-6 py-2 rounded-xl text-sm font-medium disabled:opacity-50"
                                     >
                                         {isUpdatingPassword ? 'Updating...' : 'Update Password'}
