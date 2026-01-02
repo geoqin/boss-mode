@@ -103,7 +103,7 @@ export function AuthForm() {
     }
 
     return (
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md text-left">
             <div className="mb-6 flex justify-center">
                 {/* Optional: Add title changes based on mode if desired, but parent handles title */}
             </div>

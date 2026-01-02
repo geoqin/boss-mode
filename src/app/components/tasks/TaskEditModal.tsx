@@ -252,7 +252,7 @@ export function TaskEditModal({
                                                 type="checkbox"
                                                 checked={subtask.completed}
                                                 onChange={() => onToggleSubtask(subtask.id, !subtask.completed)}
-                                                className="checkbox-custom w-5 h-5"
+                                                className={`checkbox-custom w-5 h-5 ${!isDark ? '!border-purple-500/50' : ''}`}
                                             />
                                             <span className={`flex-1 text-sm ${subtask.completed
                                                 ? (isDark ? 'line-through text-white/30' : 'line-through text-gray-400')
