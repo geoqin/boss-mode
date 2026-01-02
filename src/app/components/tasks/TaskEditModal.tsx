@@ -35,10 +35,21 @@ export function TaskEditModal({
     onDeleteComment,
 }: TaskEditModalProps) {
     const [title, setTitle] = useState(task.title)
-    const [dueDate, setDueDate] = useState(task.due_date ? task.due_date.split('T')[0] : '')
+
+    // Split ISO date into date and time parts
+    const initialDate = task.due_date ? task.due_date.split('T')[0] : ''
+    const initialTime = task.due_date && task.due_date.includes('T')
+        ? task.due_date.split('T')[1].substring(0, 5)
+        : ''
+
+    const [dueDate, setDueDate] = useState(initialDate)
+    const [dueTime, setDueTime] = useState(initialTime)
+
     const [priority, setPriority] = useState(task.priority)
     const [recurrence, setRecurrence] = useState(task.recurrence || '')
     const [categoryId, setCategoryId] = useState(task.category_id || '')
+    const [reminder, setReminder] = useState<string>(task.reminder_minutes_before?.toString() || '')
+
     const [newSubtask, setNewSubtask] = useState('')
     const [newComment, setNewComment] = useState('')
     const [saving, setSaving] = useState(false)
@@ -60,13 +71,24 @@ export function TaskEditModal({
     const handleSave = async () => {
         setSaving(true)
         try {
+            // Combine date and time
+            let isoDate = null
+            if (dueDate) {
+                if (dueTime) {
+                    isoDate = `${dueDate}T${dueTime}:00`
+                } else {
+                    isoDate = dueDate
+                }
+            }
+
             await onUpdateTask({
                 id: task.id,
                 title,
-                due_date: dueDate || null,
+                due_date: isoDate,
                 priority,
                 recurrence: (recurrence || null) as 'daily' | 'weekly' | 'monthly' | null,
                 category_id: categoryId || null,
+                reminder_minutes_before: reminder ? parseInt(reminder) : null
             })
             onClose()
         } finally {
@@ -100,6 +122,8 @@ export function TaskEditModal({
             ? (isDark ? 'bg-white/10 text-white' : 'bg-purple-100 text-purple-700')
             : (isDark ? 'text-white/40 hover:text-white/60' : 'text-gray-500 hover:text-gray-700')
         }`
+
+    const canSetReminder = !!dueTime
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -156,15 +180,44 @@ export function TaskEditModal({
                                 />
                             </div>
 
-                            {/* Due Date */}
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Due Date */}
+                                <div>
+                                    <label className={`block text-sm font-medium mb-1 ${labelClass}`}>Due Date</label>
+                                    <input
+                                        type="date"
+                                        value={dueDate}
+                                        onChange={e => setDueDate(e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-lg border ${inputClass} focus:outline-none`}
+                                    />
+                                </div>
+                                {/* Due Time */}
+                                <div>
+                                    <label className={`block text-sm font-medium mb-1 ${labelClass}`}>Time</label>
+                                    <input
+                                        type="time"
+                                        value={dueTime}
+                                        onChange={e => setDueTime(e.target.value)}
+                                        className={`w-full px-3 py-2 rounded-lg border ${inputClass} focus:outline-none`}
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Reminder - Only if Time is set */}
                             <div>
-                                <label className={`block text-sm font-medium mb-1 ${labelClass}`}>Due Date</label>
-                                <input
-                                    type="date"
-                                    value={dueDate}
-                                    onChange={e => setDueDate(e.target.value)}
-                                    className={`w-full px-3 py-2 rounded-lg border ${inputClass} focus:outline-none`}
-                                />
+                                <label className={`block text-sm font-medium mb-1 ${labelClass} ${!canSetReminder ? 'opacity-50' : ''}`}>Remind Me</label>
+                                <select
+                                    value={reminder}
+                                    onChange={e => setReminder(e.target.value)}
+                                    disabled={!canSetReminder}
+                                    className={`w-full px-3 py-2 rounded-lg border ${inputClass} focus:outline-none ${!canSetReminder ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                                >
+                                    <option value="">None</option>
+                                    <option value="15">15 minutes before</option>
+                                    <option value="30">30 minutes before</option>
+                                    <option value="60">1 hour before</option>
+                                    <option value="1440">1 day before</option>
+                                </select>
                             </div>
 
                             {/* Priority */}

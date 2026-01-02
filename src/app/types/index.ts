@@ -7,6 +7,7 @@ export interface Task {
   due_date: string | null
   priority: 'low' | 'medium' | 'high'
   recurrence?: 'daily' | 'weekly' | 'monthly' | null
+  reminder_minutes_before?: number | null
   created_at: string
   completed_at: string | null
   comment_count?: number // Computed field for display
@@ -76,6 +77,7 @@ export interface NewTask {
   due_date?: string | null
   priority?: 'low' | 'medium' | 'high'
   recurrence?: 'daily' | 'weekly' | 'monthly' | null
+  reminder_minutes_before?: number | null
 }
 
 // For creating new categories
