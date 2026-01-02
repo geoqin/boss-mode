@@ -216,22 +216,35 @@ export default function DashboardPage() {
     if (!task) return
     setError(null)
 
-    // Check for recurring task rollover
-    // If it's a recurring task that should technically be incomplete (visually empty box),
-    // and the user clicks it, it means they are completing the NEXT instance.
-    // In this case, we advance the due date and keep it completed.
     let newCompleted = !task.completed
     let newDueDate = task.due_date
 
-    // We need to import these, assuming they are available or defining them.
-    // Since I can't easily import inside a function replace, I'll rely on the import I'm about to add at the top.
+    // Handle recurring tasks specially
+    if (task.recurrence) {
+      if (!task.completed) {
+        // Completing a recurring task: Advance due date to next occurrence
+        // The task stays "completed" for today but will reappear with new date
+        const baseDate = task.due_date ? new Date(task.due_date) : new Date()
+        const nextDate = new Date(baseDate)
 
-    if (task.recurrence && task.completed && shouldRevertToIncomplete(task)) {
-      // Rollover logic!
-      const nextDate = getNextDueDate(task)
-      if (nextDate) {
+        switch (task.recurrence) {
+          case 'daily':
+            nextDate.setDate(nextDate.getDate() + 1)
+            break
+          case 'weekly':
+            nextDate.setDate(nextDate.getDate() + 7)
+            break
+          case 'monthly':
+            nextDate.setMonth(nextDate.getMonth() + 1)
+            break
+        }
+
         newDueDate = nextDate.toISOString().split('T')[0]
-        newCompleted = true // Keep it completed, but for the NEW date
+        // Keep completed = false so it appears as an active task for future date
+        newCompleted = false
+      } else {
+        // Uncompleting a recurring task - just toggle back
+        newCompleted = false
       }
     }
 

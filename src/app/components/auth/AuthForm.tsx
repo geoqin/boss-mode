@@ -206,6 +206,18 @@ export function AuthForm() {
                     </Button>
                 ) : (
                     <>
+                        {/* Signup/Login toggle - moved above OAuth for visibility */}
+                        <Button
+                            onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                            fullWidth
+                            variant="outlined"
+                            sx={{ textTransform: 'none' }}
+                        >
+                            {mode === 'login'
+                                ? "Don't have an account? Sign up"
+                                : 'Already have an account? Sign in'}
+                        </Button>
+
                         <Divider sx={{ my: 3 }}>
                             <Typography variant="body2" color="text.secondary">
                                 Or continue with
@@ -236,16 +248,6 @@ export function AuthForm() {
                                 GitHub
                             </Button>
                         </Stack>
-
-                        <Button
-                            onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                            fullWidth
-                            sx={{ mt: 3, textTransform: 'none' }}
-                        >
-                            {mode === 'login'
-                                ? "Don't have an account? Sign up"
-                                : 'Already have an account? Sign in'}
-                        </Button>
                     </>
                 )}
             </Box>

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { User } from "@supabase/supabase-js"
 import { Task } from "@/app/types"
 import { BossFace } from "../boss/BossFace"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { getLocalTodayDate } from "@/app/utils/dateUtils"
 
 interface DashboardHeaderProps {
@@ -29,12 +29,25 @@ export function DashboardHeader({
     tasks
 }: DashboardHeaderProps) {
     const [currentHour, setCurrentHour] = useState<number | null>(null)
+    const [dropdownOpen, setDropdownOpen] = useState(false)
+    const dropdownRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
         const timer = setTimeout(() => {
             setCurrentHour(new Date().getHours())
         }, 0)
         return () => clearTimeout(timer)
+    }, [])
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setDropdownOpen(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
     }, [])
 
     const textMuted = isDark ? "text-white/40" : "text-gray-500"
@@ -90,55 +103,64 @@ export function DashboardHeader({
 
                     <div className={`h-3 w-px ${isDark ? 'bg-white/10' : 'bg-gray-300'}`}></div>
 
-                    {/* Account Dropdown */}
-                    <div className="relative group cursor-pointer py-1">
-                        <div className="flex items-center gap-1.5">
-                            <span className={`${textMuted} text-xs group-hover:text-purple-400 transition-colors`}>
+                    {/* Account Dropdown - Click-based for touch device support */}
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                            className="flex items-center gap-1.5 py-1 cursor-pointer"
+                        >
+                            <span className={`${textMuted} text-xs ${dropdownOpen ? 'text-purple-400' : ''} transition-colors`}>
                                 {displayName}
                             </span>
-                            <span className={`${textMuted} text-[10px]`}>▼</span>
-                        </div>
+                            <span className={`${textMuted} text-[10px] transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
+                        </button>
 
                         {/* Dropdown Content */}
-                        <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl shadow-2xl overflow-hidden opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all transform origin-top-right z-50 ${isDark ? 'bg-[#0f0c29] border border-white/10' : 'bg-white border border-gray-100'}`}>
-                            <div className="p-4 border-b border-gray-100 dark:border-white/5">
-                                <p className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Signed in as</p>
-                                <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{user?.email}</p>
-                            </div>
+                        {dropdownOpen && (
+                            <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl shadow-2xl overflow-hidden animate-fade-in z-50 ${isDark ? 'bg-[#0f0c29] border border-white/10' : 'bg-white border border-gray-100'}`}>
+                                <div className="p-4 border-b border-gray-100 dark:border-white/5">
+                                    <p className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Signed in as</p>
+                                    <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{user?.email}</p>
+                                </div>
 
-                            <div className="p-2">
-                                {/* Notification Toggle */}
-                                <button
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        onNotificationToggle()
-                                    }}
-                                    className={`flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors ${isDark ? 'hover:bg-white/5 text-white/80' : 'hover:bg-gray-50 text-gray-700'}`}
-                                >
-                                    <span className="text-lg">{notificationsEnabled ? '🔔' : '🔕'}</span>
-                                    <span>
-                                        {notificationsEnabled ? 'Notifications On' : 'Enable Notifications'}
-                                    </span>
-                                </button>
-                            </div>
+                                <div className="p-2">
+                                    {/* Notification Toggle */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onNotificationToggle()
+                                        }}
+                                        className={`flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors ${isDark ? 'hover:bg-white/5 text-white/80' : 'hover:bg-gray-50 text-gray-700'}`}
+                                    >
+                                        <span className="text-lg">{notificationsEnabled ? '🔔' : '🔕'}</span>
+                                        <span>
+                                            {notificationsEnabled ? 'Notifications On' : 'Enable Notifications'}
+                                        </span>
+                                    </button>
+                                </div>
 
-                            <div className="p-2 border-t border-gray-100 dark:border-white/5">
-                                <Link
-                                    href="/account"
-                                    className={`flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors ${isDark ? 'hover:bg-white/5 text-white/80' : 'hover:bg-gray-50 text-gray-700'}`}
-                                >
-                                    <span className="text-lg">⚙️</span>
-                                    Account Settings
-                                </Link>
-                                <button
-                                    onClick={onSignOut}
-                                    className={`flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors text-red-500 ${isDark ? 'hover:bg-red-500/10' : 'hover:bg-red-50'}`}
-                                >
-                                    <span className="text-lg">🚪</span>
-                                    Sign Out
-                                </button>
+                                <div className="p-2 border-t border-gray-100 dark:border-white/5">
+                                    <Link
+                                        href="/account"
+                                        onClick={() => setDropdownOpen(false)}
+                                        className={`flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors ${isDark ? 'hover:bg-white/5 text-white/80' : 'hover:bg-gray-50 text-gray-700'}`}
+                                    >
+                                        <span className="text-lg">⚙️</span>
+                                        Account Settings
+                                    </Link>
+                                    <button
+                                        onClick={() => {
+                                            setDropdownOpen(false)
+                                            onSignOut()
+                                        }}
+                                        className={`flex items-center gap-3 w-full px-3 py-2 text-sm rounded-lg transition-colors text-red-500 ${isDark ? 'hover:bg-red-500/10' : 'hover:bg-red-50'}`}
+                                    >
+                                        <span className="text-lg">🚪</span>
+                                        Sign Out
+                                    </button>
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
