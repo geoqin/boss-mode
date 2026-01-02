@@ -14,7 +14,6 @@ import {
   Paper,
   CircularProgress,
   Tooltip,
-  IconButton,
   useMediaQuery,
   useTheme,
 } from "@mui/material"
@@ -27,7 +26,7 @@ import {
   Label,
 } from "@mui/icons-material"
 import { DatePicker, TimePicker } from "@mui/x-date-pickers"
-import { parse, format, isAfter, addDays, startOfDay } from "date-fns"
+import { format, isAfter, addDays, startOfDay } from "date-fns"
 
 interface TaskFormProps {
   onAdd: (task: NewTask) => Promise<void> | void
@@ -118,7 +117,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
 
   const canSetReminder = !!dueTime
 
-  // Icon wrapper for mobile
+  // Icon for mobile fields
   const FieldIcon = ({ icon, label }: { icon: React.ReactNode, label: string }) => (
     isMobile ? (
       <Tooltip title={label} arrow>
@@ -128,6 +127,16 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
       </Tooltip>
     ) : null
   )
+
+  // Compact picker styles for mobile - prevent overflow
+  const pickerSx = {
+    '& .MuiInputBase-root': {
+      borderRadius: 2,
+    },
+    '& .MuiOutlinedInput-notchedOutline': {
+      borderRadius: 2,
+    },
+  }
 
   return (
     <Paper
@@ -162,133 +171,160 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           type="submit"
           variant="contained"
           disabled={isSubmitting || !title.trim()}
-          sx={{ minWidth: 80, height: 40 }}
+          sx={{ minWidth: 90, height: 40, whiteSpace: 'nowrap' }}
         >
           {isSubmitting ? (
             <CircularProgress size={20} color="inherit" />
           ) : (
-            <>Add →</>
+            'Add →'
           )}
         </Button>
       </Stack>
 
       <Collapse in={isExpanded}>
-        <Stack
-          direction="row"
-          flexWrap="wrap"
-          gap={isMobile ? 1 : 2}
-          sx={{ mt: 2, px: 1 }}
-        >
-          {/* Due Date */}
-          <Stack direction="row" alignItems="center">
-            <FieldIcon icon={<CalendarMonth fontSize="small" />} label="Due Date" />
-            <DatePicker
-              label={isMobile ? "" : "Due Date"}
-              value={dueDate}
-              onChange={(newValue) => setDueDate(newValue)}
-              disabled={isSubmitting}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  sx: { minWidth: isMobile ? 100 : 150 },
-                  placeholder: isMobile ? "Date" : undefined,
-                }
-              }}
-            />
-          </Stack>
+        <Box sx={{ mt: 2, px: 1 }}>
+          {isMobile ? (
+            // Mobile: Wrap freely with icons
+            <Stack direction="row" flexWrap="wrap" gap={1}>
+              <Stack direction="row" alignItems="center">
+                <FieldIcon icon={<CalendarMonth fontSize="small" />} label="Due Date" />
+                <DatePicker
+                  value={dueDate}
+                  onChange={setDueDate}
+                  disabled={isSubmitting}
+                  slotProps={{
+                    textField: { size: 'small', sx: { width: 110, ...pickerSx } }
+                  }}
+                />
+              </Stack>
 
-          {/* Time */}
-          <Stack direction="row" alignItems="center">
-            <FieldIcon icon={<AccessTime fontSize="small" />} label="Time" />
-            <TimePicker
-              label={isMobile ? "" : "Time"}
-              value={dueTime}
-              onChange={(newValue) => setDueTime(newValue)}
-              disabled={isSubmitting}
-              slotProps={{
-                textField: {
-                  size: 'small',
-                  sx: { minWidth: isMobile ? 90 : 130 }
-                }
-              }}
-            />
-          </Stack>
+              <Stack direction="row" alignItems="center">
+                <FieldIcon icon={<AccessTime fontSize="small" />} label="Time" />
+                <TimePicker
+                  value={dueTime}
+                  onChange={setDueTime}
+                  disabled={isSubmitting}
+                  slotProps={{
+                    textField: { size: 'small', sx: { width: 100, ...pickerSx } }
+                  }}
+                />
+              </Stack>
 
-          {/* Reminder */}
-          <Stack direction="row" alignItems="center">
-            <FieldIcon icon={<NotificationsActive fontSize="small" />} label="Remind Me" />
-            <FormControl size="small" sx={{ minWidth: isMobile ? 80 : 160 }} disabled={!canSetReminder || isSubmitting}>
-              {!isMobile && <InputLabel>Remind Me</InputLabel>}
-              <Select
-                value={reminder}
-                onChange={e => setReminder(e.target.value)}
-                label={isMobile ? "" : "Remind Me"}
-                displayEmpty={isMobile}
-              >
-                <MenuItem value="">{isMobile ? "—" : "None"}</MenuItem>
-                <MenuItem value="15">15m</MenuItem>
-                <MenuItem value="30">30m</MenuItem>
-                <MenuItem value="60">1h</MenuItem>
-                <MenuItem value="1440">1d</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
+              <Stack direction="row" alignItems="center">
+                <FieldIcon icon={<NotificationsActive fontSize="small" />} label="Remind" />
+                <FormControl size="small" sx={{ width: 70 }} disabled={!canSetReminder || isSubmitting}>
+                  <Select value={reminder} onChange={e => setReminder(e.target.value)} displayEmpty>
+                    <MenuItem value="">—</MenuItem>
+                    <MenuItem value="15">15m</MenuItem>
+                    <MenuItem value="30">30m</MenuItem>
+                    <MenuItem value="60">1h</MenuItem>
+                    <MenuItem value="1440">1d</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
 
-          {/* Priority */}
-          <Stack direction="row" alignItems="center">
-            <FieldIcon icon={<Flag fontSize="small" />} label="Priority" />
-            <FormControl size="small" sx={{ minWidth: isMobile ? 70 : 120 }} disabled={isSubmitting}>
-              {!isMobile && <InputLabel>Priority</InputLabel>}
-              <Select
-                value={priority}
-                onChange={e => setPriority(e.target.value as "low" | "medium" | "high")}
-                label={isMobile ? "" : "Priority"}
-              >
-                <MenuItem value="low">{isMobile ? "🟢" : "Low"}</MenuItem>
-                <MenuItem value="medium">{isMobile ? "🟡" : "Medium"}</MenuItem>
-                <MenuItem value="high">{isMobile ? "🔴" : "High"}</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
+              <Stack direction="row" alignItems="center">
+                <FieldIcon icon={<Flag fontSize="small" />} label="Priority" />
+                <FormControl size="small" sx={{ width: 60 }} disabled={isSubmitting}>
+                  <Select value={priority} onChange={e => setPriority(e.target.value as "low" | "medium" | "high")}>
+                    <MenuItem value="low">🟢</MenuItem>
+                    <MenuItem value="medium">🟡</MenuItem>
+                    <MenuItem value="high">🔴</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
 
-          {/* Recurrence */}
-          <Stack direction="row" alignItems="center">
-            <FieldIcon icon={<Repeat fontSize="small" />} label="Repeat" />
-            <FormControl size="small" sx={{ minWidth: isMobile ? 80 : 130 }} disabled={isSubmitting}>
-              {!isMobile && <InputLabel>Repeat</InputLabel>}
-              <Select
-                value={recurrence}
-                onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")}
-                label={isMobile ? "" : "Repeat"}
-                displayEmpty={isMobile}
-              >
-                <MenuItem value="">{isMobile ? "—" : "No Repeat"}</MenuItem>
-                <MenuItem value="daily">{isMobile ? "D" : "Daily"}</MenuItem>
-                <MenuItem value="weekly">{isMobile ? "W" : "Weekly"}</MenuItem>
-                <MenuItem value="monthly">{isMobile ? "M" : "Monthly"}</MenuItem>
-              </Select>
-            </FormControl>
-          </Stack>
+              <Stack direction="row" alignItems="center">
+                <FieldIcon icon={<Repeat fontSize="small" />} label="Repeat" />
+                <FormControl size="small" sx={{ width: 60 }} disabled={isSubmitting}>
+                  <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} displayEmpty>
+                    <MenuItem value="">—</MenuItem>
+                    <MenuItem value="daily">D</MenuItem>
+                    <MenuItem value="weekly">W</MenuItem>
+                    <MenuItem value="monthly">M</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
 
-          {/* Category */}
-          <Stack direction="row" alignItems="center">
-            <FieldIcon icon={<Label fontSize="small" />} label="Category" />
-            <FormControl size="small" sx={{ minWidth: isMobile ? 80 : 130 }} disabled={isSubmitting}>
-              {!isMobile && <InputLabel>Category</InputLabel>}
-              <Select
-                value={categoryId}
-                onChange={e => setCategoryId(e.target.value)}
-                label={isMobile ? "" : "Category"}
-                displayEmpty={isMobile}
-              >
-                <MenuItem value="">{isMobile ? "—" : "No Category"}</MenuItem>
-                {categories.map(cat => (
-                  <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
-        </Stack>
+              <Stack direction="row" alignItems="center">
+                <FieldIcon icon={<Label fontSize="small" />} label="Category" />
+                <FormControl size="small" sx={{ width: 80 }} disabled={isSubmitting}>
+                  <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} displayEmpty>
+                    <MenuItem value="">—</MenuItem>
+                    {categories.map(cat => (
+                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Stack>
+          ) : (
+            // Desktop: Organized rows
+            <Stack spacing={2}>
+              {/* Row 1: Due Date + Time */}
+              <Stack direction="row" spacing={2}>
+                <DatePicker
+                  label="Due Date"
+                  value={dueDate}
+                  onChange={setDueDate}
+                  disabled={isSubmitting}
+                  slotProps={{ textField: { size: 'small', sx: { flex: 1 } } }}
+                />
+                <TimePicker
+                  label="Time"
+                  value={dueTime}
+                  onChange={setDueTime}
+                  disabled={isSubmitting}
+                  slotProps={{ textField: { size: 'small', sx: { flex: 1 } } }}
+                />
+              </Stack>
+
+              {/* Row 2: Reminder + Priority */}
+              <Stack direction="row" spacing={2}>
+                <FormControl size="small" sx={{ flex: 1 }} disabled={!canSetReminder || isSubmitting}>
+                  <InputLabel>Remind Me</InputLabel>
+                  <Select value={reminder} onChange={e => setReminder(e.target.value)} label="Remind Me">
+                    <MenuItem value="">None</MenuItem>
+                    <MenuItem value="15">15 minutes before</MenuItem>
+                    <MenuItem value="30">30 minutes before</MenuItem>
+                    <MenuItem value="60">1 hour before</MenuItem>
+                    <MenuItem value="1440">1 day before</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                  <InputLabel>Priority</InputLabel>
+                  <Select value={priority} onChange={e => setPriority(e.target.value as "low" | "medium" | "high")} label="Priority">
+                    <MenuItem value="low">Low</MenuItem>
+                    <MenuItem value="medium">Medium</MenuItem>
+                    <MenuItem value="high">High</MenuItem>
+                  </Select>
+                </FormControl>
+              </Stack>
+
+              {/* Row 3: Repeat + Category */}
+              <Stack direction="row" spacing={2}>
+                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                  <InputLabel>Repeat</InputLabel>
+                  <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} label="Repeat">
+                    <MenuItem value="">No Repeat</MenuItem>
+                    <MenuItem value="daily">Daily</MenuItem>
+                    <MenuItem value="weekly">Weekly</MenuItem>
+                    <MenuItem value="monthly">Monthly</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                  <InputLabel>Category</InputLabel>
+                  <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} label="Category">
+                    <MenuItem value="">No Category</MenuItem>
+                    {categories.map(cat => (
+                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Stack>
+            </Stack>
+          )}
+        </Box>
       </Collapse>
     </Paper>
   )
