@@ -6,6 +6,7 @@ import { Task } from "@/app/types"
 import { BossFace } from "../boss/BossFace"
 import { useState, useEffect, useRef } from "react"
 import { getLocalTodayDate } from "@/app/utils/dateUtils"
+import { useMounted } from "@/hooks/useMounted"
 
 interface DashboardHeaderProps {
     user: User | null
@@ -31,6 +32,7 @@ export function DashboardHeader({
     const [currentHour, setCurrentHour] = useState<number | null>(null)
     const [dropdownOpen, setDropdownOpen] = useState(false)
     const dropdownRef = useRef<HTMLDivElement>(null)
+    const mounted = useMounted()
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -54,8 +56,9 @@ export function DashboardHeader({
     const textHover = isDark ? "hover:text-white/60" : "hover:text-gray-700"
 
     // Filter tasks for message: Only count tasks due Today or Earlier (or no due date)
-    const today = getLocalTodayDate()
-    const relevantTasks = tasks.filter(t => !t.due_date || t.due_date.split('T')[0] <= today)
+    // We use mounted guard for date calculation to prevent hydration mismatch
+    const today = mounted ? getLocalTodayDate() : ""
+    const relevantTasks = tasks.filter(t => !t.due_date || (today && t.due_date.split('T')[0] <= today))
 
     const completedCount = relevantTasks.filter(t => t.completed).length
     const totalCount = relevantTasks.length

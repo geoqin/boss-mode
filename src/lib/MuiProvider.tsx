@@ -4,6 +4,7 @@ import { ReactNode, createContext, useContext, useMemo, useState, useEffect } fr
 import { ThemeProvider as MuiThemeProvider, CssBaseline } from '@mui/material'
 import { LocalizationProvider } from '@mui/x-date-pickers'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter'
 import { darkTheme, lightTheme } from '@/lib/theme'
 
 interface ThemeContextType {
@@ -40,12 +41,14 @@ export function MuiProvider({ children }: MuiProviderProps) {
 
     return (
         <ThemeContext.Provider value={contextValue}>
-            <MuiThemeProvider theme={theme}>
-                <CssBaseline />
-                <LocalizationProvider dateAdapter={AdapterDateFns}>
-                    {children}
-                </LocalizationProvider>
-            </MuiThemeProvider>
+            <AppRouterCacheProvider>
+                <MuiThemeProvider theme={theme}>
+                    <CssBaseline />
+                    <LocalizationProvider dateAdapter={AdapterDateFns}>
+                        {children}
+                    </LocalizationProvider>
+                </MuiThemeProvider>
+            </AppRouterCacheProvider>
         </ThemeContext.Provider>
     )
 }

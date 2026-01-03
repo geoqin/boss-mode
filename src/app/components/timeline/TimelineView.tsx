@@ -3,6 +3,7 @@
 import { Task } from "@/app/types"
 import { useMemo } from "react"
 import { getNextDueDate, shouldRevertToIncomplete } from "@/app/utils/taskUtils"
+import { useMounted } from "@/hooks/useMounted"
 
 interface TimelineViewProps {
     tasks: Task[]
@@ -14,6 +15,7 @@ interface TimelineViewProps {
 
 export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark' }: TimelineViewProps) {
     const isDark = theme === 'dark'
+    const mounted = useMounted()
 
     // Helper to normalize date to midnight for comparison
     const normalizeDate = (d: Date) => {
@@ -24,6 +26,8 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
 
     // Generate instances for recurring tasks
     const expandedTasks = useMemo(() => {
+        if (!mounted) return []
+
         const expanded: { task: Task; displayDate: Date; isVirtual: boolean; instanceDateStr?: string }[] = []
         const now = new Date()
         const today = normalizeDate(now)

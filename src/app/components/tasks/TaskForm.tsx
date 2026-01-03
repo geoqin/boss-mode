@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react"
 import { NewTask, Category } from "@/app/types"
 import { getLocalTodayDate } from "@/app/utils/dateUtils"
+import { useMounted } from "@/hooks/useMounted"
 import {
   TextField,
   Button,
@@ -46,8 +47,10 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
 
+  const mounted = useMounted()
   const muiTheme = useTheme()
-  const isMobile = useMediaQuery(muiTheme.breakpoints.down('sm'))
+  const isSmallScreen = useMediaQuery(muiTheme.breakpoints.down('sm'))
+  const isMobile = mounted && isSmallScreen
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

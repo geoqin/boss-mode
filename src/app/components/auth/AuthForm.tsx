@@ -48,8 +48,18 @@ export function AuthForm() {
         }
     }
 
+    const validateEmail = (email: string) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+
+        if (!validateEmail(email)) {
+            setError('Please enter a valid email address.')
+            return
+        }
+
         setLoading(true)
         setError(null)
         setMessage(null)
