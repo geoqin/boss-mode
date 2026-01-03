@@ -17,11 +17,19 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
     const isDark = theme === 'dark'
     const mounted = useMounted()
 
-    // Helper to normalize date to midnight for comparison
+    // Helper to normalize date to midnight for comparison (keeps local date)
     const normalizeDate = (d: Date) => {
         const newD = new Date(d)
         newD.setHours(0, 0, 0, 0)
         return newD
+    }
+
+    // Helper to parse YYYY-MM-DD string as local midnight ensuring no timezone shift
+    const parseLocalYMD = (dateStr: string) => {
+        // Handle ISO string with time (e.g. 2023-01-01T12:00:00Z) by taking only the date part
+        const cleanDateStr = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
+        const [y, m, d] = cleanDateStr.split('-').map(Number)
+        return new Date(y, m - 1, d)
     }
 
     // Generate instances for recurring tasks
@@ -37,24 +45,48 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
         tasks.forEach(task => {
             const needsRevert = shouldRevertToIncomplete(task)
 
-            // Skip if completed AND not needing revert (i.e. actually done for now)
-            if (task.completed && !needsRevert) return
+            // NOTE: We rely on the parent component (Dashboard) to filter out "History" (tasks completed before today).
+            // Therefore, we should NOT strictly hide completed tasks here, as we want to show "Today's Completed Tasks".
+            // Only skip if it's a non-recurring task that somehow slipped through and isn't for today/future? 
+            // Actually, just trusting the input `tasks` list is safer.
 
-            if (!task.recurrence || !task.due_date) {
-                // Non-recurring or no date
+            // Determine effective start date: due_date -> created_at -> now (fallback)
+            // User rule: "if tasks have no date, assume they are due the same day they are due [sic - likely means created], but do not show the due date."
+            // "if a task is set as recurring but there is no date set, assume the due date is the same as the date created"
+            let baseDateStr = task.due_date
+            if (!baseDateStr) {
+                // specific hack: if created_at is standard ISO, parseLocalYMD handles it via split('T')
+                baseDateStr = task.created_at
+            }
+
+            // If somehow even created_at is missing (unlikely), fallback to today? 
+            // Types say created_at is string, so we are good.
+            let startDate = parseLocalYMD(baseDateStr)
+
+            // Special Case: Non-recurring, no due date. 
+            // "assume they are due the same day... but do not show the due date"
+            // If we treat them as due on creation date, they will likely be 'Overdue' or 'Today'.
+            // The previous logic put them in 'Later' (MaxDate). We are changing this.
+
+            if (!task.recurrence) {
+                // Non-recurring
                 expanded.push({
                     task,
-                    displayDate: task.due_date ? normalizeDate(new Date(task.due_date)) : new Date(8640000000000000), // Max date for 'later'
+                    displayDate: startDate,
                     isVirtual: false
                 })
             } else {
                 // Recurring
-                // If the task is effectively "reverted" (completed=true but next due is today/past), 
-                // we should start generating instances from the NEXT due date, not the old completed date.
-                let startDate = new Date(task.due_date)
+
+                // Logic for "revert" / completion handling
+                // If checking logic depends on "recurrence starting point", we usually trust `getNextDueDate` or similar utils.
+                // But here we are generating the list.
+
                 if (task.completed && needsRevert) {
                     const next = getNextDueDate(task)
-                    if (next) startDate = next
+                    if (next) {
+                        startDate = normalizeDate(next)
+                    }
                 }
 
                 const start = normalizeDate(startDate)
@@ -90,7 +122,7 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
         })
 
         return expanded.sort((a, b) => a.displayDate.getTime() - b.displayDate.getTime())
-    }, [tasks])
+    }, [tasks, mounted])
 
     const groups = useMemo(() => {
         const now = new Date()
@@ -105,7 +137,7 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
             today: expandedTasks.filter(t => t.displayDate.getTime() === today.getTime()),
             tomorrow: expandedTasks.filter(t => t.displayDate.getTime() === tomorrow.getTime()),
             upcoming: expandedTasks.filter(t => t.displayDate > tomorrow && t.displayDate <= nextWeek),
-            later: expandedTasks.filter(t => t.displayDate > nextWeek || t.displayDate.getFullYear() > 3000), // simplistic check for 'later'
+            later: expandedTasks.filter(t => t.displayDate > nextWeek),
         }
     }, [expandedTasks])
 
@@ -122,6 +154,8 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
                     {items.map((item, idx) => {
                         const { task } = item
                         const instanceKey = `${task.id}-${item.displayDate.toISOString()}`
+                        // Hide date details if the original task has no due_date set
+                        const hideDateText = !task.due_date
 
                         return (
                             <div key={instanceKey} className="relative">
@@ -161,9 +195,11 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
                                             {task.title}
                                         </span>
                                         <div className="flex gap-2 mt-1 flex-wrap">
-                                            <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                                                {item.displayDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                                            </span>
+                                            {!hideDateText && (
+                                                <span className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                                                    {item.displayDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                                                </span>
+                                            )}
                                             {task.recurrence && (
                                                 <span className={`text-xs ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>
                                                     🔄 {task.recurrence}
@@ -220,7 +256,7 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
             {renderGroup("Today", groups.today, "bg-green-500", "Nothing due today")}
             {renderGroup("Tomorrow", groups.tomorrow, "bg-yellow-500", "Nothing due tomorrow")}
             {renderGroup("Upcoming", groups.upcoming, "bg-blue-500", "Nothing upcoming")}
-            {renderGroup("Later / No Date", groups.later, "bg-gray-500", "Empty backlog")}
+            {renderGroup('Later', groups.later, 'bg-gray-400', 'No tasks scheduled for later')}
         </div>
     )
 }
