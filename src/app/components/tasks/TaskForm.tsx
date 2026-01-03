@@ -64,6 +64,15 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
     }
   }, [isSubmitting])
 
+  // Request notification permission when reminder is selected
+  useEffect(() => {
+    if (reminder && typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission()
+      }
+    }
+  }, [reminder])
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || isSubmitting) return
@@ -137,7 +146,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
       elevation={0}
       sx={{
         p: 1,
-        bgcolor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'background.paper',
+        bgcolor: 'background.paper',
         border: 1,
         borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'divider',
         borderRadius: 3,
@@ -210,6 +219,11 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                     <MenuItem value="60">1h</MenuItem>
                     <MenuItem value="1440">1d</MenuItem>
                   </Select>
+                  {reminder && typeof window !== 'undefined' && Notification.permission === 'denied' && (
+                    <Box sx={{ color: 'warning.main', fontSize: '0.7rem', mt: 0.5, px: 0.5 }}>
+                      Notifications blocked. In-app only.
+                    </Box>
+                  )}
                 </FormControl>
                 <FieldIcon icon={<Flag fontSize="small" />} label="Priority" />
                 <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>

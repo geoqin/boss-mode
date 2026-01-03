@@ -10,6 +10,7 @@ import { DashboardHeader, FilterBar, ProgressBar } from "@/app/components/dashbo
 import { ErrorBoundary } from "@/app/components/ErrorBoundary"
 import { CategoryManager } from "@/app/components/CategoryManager"
 import { useAuth } from "@/app/components/auth/AuthProvider"
+import { MuiProvider, useTheme } from "@/lib/MuiProvider"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/useNotifications"
@@ -17,6 +18,7 @@ import { useBossReminders } from "@/hooks/useBossReminders"
 import { getNextDueDate, shouldRevertToIncomplete } from "@/app/utils/taskUtils"
 import { getLocalTodayDate } from "@/app/utils/dateUtils"
 import { TaskHistoryModal } from "../components/tasks/TaskHistoryModal"
+import { ReminderManager } from "../components/ReminderManager"
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -26,7 +28,7 @@ export default function DashboardPage() {
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list')
   const [error, setError] = useState<string | null>(null)
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+  const { mode: theme, setMode } = useTheme()
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [profile, setProfile] = useState<{ first_name: string | null, last_name: string | null }>({ first_name: null, last_name: null })
 
@@ -44,7 +46,7 @@ export default function DashboardPage() {
   const { permission, requestPermission, sendTestNotification } = useNotifications()
 
   // Boss Watch: Reminders
-  useBossReminders(tasks, notificationsEnabled)
+  const { activeAlerts, acknowledge, snooze } = useBossReminders(tasks, notificationsEnabled)
 
   // Fetch tasks and categories from Supabase
   useEffect(() => {
@@ -100,7 +102,7 @@ export default function DashboardPage() {
         .single()
 
       if (prefData) {
-        if (prefData.theme) setTheme(prefData.theme as 'light' | 'dark')
+        if (prefData.theme) setMode(prefData.theme as 'light' | 'dark')
         if (prefData.notifications_enabled !== undefined) setNotificationsEnabled(prefData.notifications_enabled)
         setProfile({ first_name: prefData.first_name, last_name: prefData.last_name })
       }
@@ -138,7 +140,7 @@ export default function DashboardPage() {
 
   const toggleTheme = async () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(newTheme)
+    setMode(newTheme)
 
     if (user) {
       await supabase
@@ -641,6 +643,15 @@ export default function DashboardPage() {
             />
           )
         }
+
+        {/* Reminder Manager */}
+        {activeAlerts && activeAlerts.length > 0 && (
+          <ReminderManager
+            alerts={activeAlerts}
+            onAcknowledge={acknowledge}
+            onSnooze={snooze}
+          />
+        )}
       </div>
     </ErrorBoundary>
   )

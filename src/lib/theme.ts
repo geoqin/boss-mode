@@ -56,6 +56,24 @@ const baseTheme: ThemeOptions = {
                 },
             },
         },
+        MuiMenu: {
+            styleOverrides: {
+                paper: {
+                    backgroundColor: '#1a1625', // Solid neutral color for menus
+                    backgroundImage: 'none',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                },
+            },
+        },
+        MuiPopover: {
+            styleOverrides: {
+                paper: {
+                    backgroundColor: '#1a1625', // Solid neutral color for popovers (date pickers)
+                    backgroundImage: 'none',
+                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                },
+            },
+        },
     },
 }
 
@@ -75,7 +93,7 @@ export const darkTheme = createTheme({
         },
         background: {
             default: '#0f0a1a',
-            paper: 'rgba(255, 255, 255, 0.05)',
+            paper: '#1a1625', // Changed from rgba to solid
         },
         text: {
             primary: '#f5f5f7',

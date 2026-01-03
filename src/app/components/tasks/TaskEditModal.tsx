@@ -140,6 +140,15 @@ export function TaskEditModal({
         }
     }
 
+    // Request notification permission when reminder is selected
+    useEffect(() => {
+        if (reminder && typeof window !== 'undefined' && 'Notification' in window) {
+            if (Notification.permission === 'default') {
+                Notification.requestPermission()
+            }
+        }
+    }, [reminder])
+
     const handleAddSubtask = async () => {
         if (!newSubtask.trim()) return
         await onAddSubtask(task.id, newSubtask.trim())
@@ -170,7 +179,7 @@ export function TaskEditModal({
             fullWidth
             PaperProps={{
                 sx: {
-                    bgcolor: isDark ? '#1a1035' : 'background.paper',
+                    bgcolor: 'background.paper',
                     borderRadius: 4,
                 }
             }}
@@ -225,6 +234,11 @@ export function TaskEditModal({
                                 <MenuItem value="60">1 hour before</MenuItem>
                                 <MenuItem value="1440">1 day before</MenuItem>
                             </Select>
+                            {reminder && typeof window !== 'undefined' && Notification.permission === 'denied' && (
+                                <Box sx={{ color: 'warning.main', fontSize: '0.75rem', mt: 0.5, px: 1 }}>
+                                    Notifications blocked. You will receive in-app reminders only.
+                                </Box>
+                            )}
                         </FormControl>
 
                         <FormControl fullWidth>
