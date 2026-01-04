@@ -146,7 +146,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
       elevation={0}
       sx={{
         p: 1,
-        bgcolor: 'background.paper',
+        bgcolor: theme === 'dark' ? '#2d2b3b' : 'background.paper',
         border: 1,
         borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'divider',
         borderRadius: 3,
@@ -171,7 +171,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           type="submit"
           variant="contained"
           disabled={isSubmitting || !title.trim()}
-          sx={{ minWidth: 90, height: 40, whiteSpace: 'nowrap' }}
+          sx={{ minWidth: 90, height: 40, whiteSpace: 'nowrap', borderRadius: '20px' }}
         >
           {isSubmitting ? (
             <CircularProgress size={20} color="inherit" />

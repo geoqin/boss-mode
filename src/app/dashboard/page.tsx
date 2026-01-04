@@ -15,8 +15,8 @@ import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useBossReminders } from "@/hooks/useBossReminders"
-import { getNextDueDate, shouldRevertToIncomplete } from "@/app/utils/taskUtils"
-import { getLocalTodayDate } from "@/app/utils/dateUtils"
+import { getNextDueDate, shouldRevertToIncomplete, getPreviousDueDate } from "@/app/utils/taskUtils"
+import { getLocalTodayDate, formatLocalDate } from "@/app/utils/dateUtils"
 import { TaskHistoryModal } from "../components/tasks/TaskHistoryModal"
 import { ReminderManager } from "../components/ReminderManager"
 
@@ -85,6 +85,83 @@ export default function DashboardPage() {
       }))
 
       setTasks(tasksWithCounts)
+
+      // Roll over completed recurring tasks if necessary
+      const updatedTasks = [...tasksWithCounts]
+      let needsUpdate = false
+      const today = getLocalTodayDate()
+
+      for (let i = 0; i < updatedTasks.length; i++) {
+        const t = updatedTasks[i]
+        if (t.recurrence && t.completed) {
+          // If the task is completed and the day has passed, roll it over
+          // Check if it's "history" (completed yesterday or earlier)
+          const isHistory = t.completed_at ? t.completed_at.split('T')[0] < today : (t.due_date ? t.due_date < today : false)
+
+          if (isHistory) {
+            const nextDue = getNextDueDate(t)
+            if (nextDue) {
+              const nextDueDateStr = formatLocalDate(nextDue)
+              updatedTasks[i] = {
+                ...t,
+                completed: false,
+                completed_at: null,
+                due_date: nextDueDateStr
+              }
+              needsUpdate = true
+
+              // Persist to Supabase
+              await supabase
+                .from('tasks')
+                .update({
+                  completed: false,
+                  completed_at: null,
+                  due_date: nextDueDateStr
+                })
+                .eq('id', t.id)
+            }
+          }
+        }
+      }
+
+      if (needsUpdate) {
+        setTasks(updatedTasks)
+      }
+
+      // 2. Migrate legacy completed recurring tasks (marked done under old system today)
+      let needsMigrationUpdate = false
+      for (let i = 0; i < updatedTasks.length; i++) {
+        const t = updatedTasks[i]
+        // If it's recurring, not completed, has no completion record, but its previous date would be today
+        if (t.recurrence && !t.completed && !t.completed_at) {
+          const prevDue = getPreviousDueDate(t)
+          if (prevDue) {
+            const prevDueStr = formatLocalDate(prevDue)
+            if (prevDueStr === today) {
+              updatedTasks[i] = {
+                ...t,
+                completed: true,
+                completed_at: t.created_at, // Use created_at as a fallback or just now
+                due_date: today
+              }
+              needsMigrationUpdate = true
+
+              await supabase
+                .from('tasks')
+                .update({
+                  completed: true,
+                  completed_at: new Date().toISOString(),
+                  due_date: today
+                })
+                .eq('id', t.id)
+            }
+          }
+        }
+      }
+
+      if (needsMigrationUpdate) {
+        setTasks([...updatedTasks])
+      }
 
       // Fetch Categories
       const { data: catData } = await supabase
@@ -223,31 +300,11 @@ export default function DashboardPage() {
 
     // Handle recurring tasks specially
     if (task.recurrence) {
-      if (!task.completed) {
-        // Completing a recurring task: Advance due date to next occurrence
-        // The task stays "completed" for today but will reappear with new date
-        const baseDate = task.due_date ? new Date(task.due_date) : new Date()
-        const nextDate = new Date(baseDate)
-
-        switch (task.recurrence) {
-          case 'daily':
-            nextDate.setDate(nextDate.getDate() + 1)
-            break
-          case 'weekly':
-            nextDate.setDate(nextDate.getDate() + 7)
-            break
-          case 'monthly':
-            nextDate.setMonth(nextDate.getMonth() + 1)
-            break
-        }
-
-        newDueDate = nextDate.toISOString().split('T')[0]
-        // Keep completed = false so it appears as an active task for future date
-        newCompleted = false
-      } else {
-        // Uncompleting a recurring task - just toggle back
-        newCompleted = false
-      }
+      // Just toggle the completed status
+      // We don't advance the due date here anymore. 
+      // It stays 'completed' for today, and rolls over on next refresh/load when the day changes.
+      newCompleted = !task.completed
+      newDueDate = task.due_date
     }
 
     // Optimistic update

@@ -3,6 +3,7 @@
 import { Task } from "@/app/types"
 import { useMemo } from "react"
 import { getNextDueDate, shouldRevertToIncomplete } from "@/app/utils/taskUtils"
+import { parseLocalYMD, normalizeDate } from "@/app/utils/dateUtils"
 import { useMounted } from "@/hooks/useMounted"
 
 interface TimelineViewProps {
@@ -16,21 +17,6 @@ interface TimelineViewProps {
 export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark' }: TimelineViewProps) {
     const isDark = theme === 'dark'
     const mounted = useMounted()
-
-    // Helper to normalize date to midnight for comparison (keeps local date)
-    const normalizeDate = (d: Date) => {
-        const newD = new Date(d)
-        newD.setHours(0, 0, 0, 0)
-        return newD
-    }
-
-    // Helper to parse YYYY-MM-DD string as local midnight ensuring no timezone shift
-    const parseLocalYMD = (dateStr: string) => {
-        // Handle ISO string with time (e.g. 2023-01-01T12:00:00Z) by taking only the date part
-        const cleanDateStr = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr
-        const [y, m, d] = cleanDateStr.split('-').map(Number)
-        return new Date(y, m - 1, d)
-    }
 
     // Generate instances for recurring tasks
     const expandedTasks = useMemo(() => {
@@ -77,46 +63,22 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
                 })
             } else {
                 // Recurring
+                // User rule: "Recurring tasks only need to be shown on the current day."
+                // Actually, they should show on their due date (Today or Overdue).
+                // If the due date is in the future, we skip it per user request.
 
-                // Logic for "revert" / completion handling
-                // If checking logic depends on "recurrence starting point", we usually trust `getNextDueDate` or similar utils.
-                // But here we are generating the list.
+                const taskDueDate = task.due_date ? parseLocalYMD(task.due_date) : startDate
+                const normalizedDue = normalizeDate(taskDueDate)
 
-                if (task.completed && needsRevert) {
-                    const next = getNextDueDate(task)
-                    if (next) {
-                        startDate = normalizeDate(next)
-                    }
-                }
-
-                const start = normalizeDate(startDate)
-                const current = new Date(start)
-
-                // Safety break for infinite loops
-                let count = 0
-                while (current <= next30Days && count < 100) {
-                    count++
-
-                    // Only add if it's within our window (today onwards) OR if it's the original overdue date
-                    // Note: If we shifted start date due to revert, 'start' is the new due date (Today/Overdue)
-                    if (current >= today || current.getTime() === start.getTime()) {
-                        expanded.push({
-                            task,
-                            displayDate: new Date(current),
-                            // It's virtual if it's NOT the calculated start date
-                            isVirtual: current.getTime() !== start.getTime(),
-                            instanceDateStr: current.toISOString().split('T')[0]
-                        })
-                    }
-
-                    // Advance date
-                    if (task.recurrence === 'daily') {
-                        current.setDate(current.getDate() + 1)
-                    } else if (task.recurrence === 'weekly') {
-                        current.setDate(current.getDate() + 7)
-                    } else if (task.recurrence === 'monthly') {
-                        current.setMonth(current.getMonth() + 1)
-                    }
+                // Only show if it's today or overdue. 
+                // Don't populate future instances.
+                if (normalizedDue <= today) {
+                    expanded.push({
+                        task,
+                        displayDate: normalizedDue,
+                        isVirtual: false,
+                        instanceDateStr: normalizedDue.toISOString().split('T')[0]
+                    })
                 }
             }
         })
@@ -181,13 +143,8 @@ export function TimelineView({ tasks, onToggle, onDelete, onEdit, theme = 'dark'
                                         }}
                                         className="checkbox-custom"
                                         style={!isDark ? { borderColor: '#d1d5db' } : {}}
-                                        // Disable checkbox for virtual future instances if we assume strict sequential? 
-                                        // Or allow checking them off early? User requested "1 instance for each day... pre-populated"
-                                        // Let's allow toggling. But toggling a future instance might be complex if it's virtual.
-                                        // For now, let's treat toggle as acting on the main task if it's the "current" one, 
-                                        // or ignore if it's future virtual (since DB row doesn't exist).
-                                        // Actually, simplistic approach: Toggle only real task.
-                                        disabled={item.isVirtual}
+                                        // Toggling is always enabled now as we don't have future virtual instances
+                                        disabled={false}
                                     />
 
                                     <div className="flex flex-col flex-1">
