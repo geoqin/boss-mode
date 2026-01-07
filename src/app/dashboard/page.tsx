@@ -611,7 +611,10 @@ export default function DashboardPage() {
             onThemeToggle={toggleTheme}
             onNotificationToggle={toggleNotifications}
             onSignOut={handleSignOut}
-            tasks={todaysTasks}
+            tasks={todaysTasks.map(t => ({
+              ...t,
+              completed: getTaskCompletedForToday(t)
+            }))}
           />
 
           {/* Error message */}

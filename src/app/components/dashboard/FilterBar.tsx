@@ -121,10 +121,10 @@ export function FilterBar({
 
     return (
         <div className="flex flex-col gap-4 mb-6 animate-fade-in">
-            {/* Date Navigation Row */}
-            <div className="flex items-center justify-between">
+            {/* Top Bar: Date Navigation & View Mode */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 {/* Left: Navigation arrows and date */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between w-full md:w-auto md:justify-start gap-2">
                     <button
                         onClick={navigatePrev}
                         className={`p-2 rounded-lg transition-all ${isDark ? 'hover:bg-white/10 text-white/60' : 'hover:bg-gray-100 text-gray-500'}`}
@@ -148,7 +148,7 @@ export function FilterBar({
 
                         {/* DatePicker Popup */}
                         {showDatePicker && (
-                            <div className={`absolute top-full left-0 mt-2 z-50 rounded-xl shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
+                            <div className={`absolute top-full left-1/2 -translate-x-1/2 mt-2 z-50 rounded-xl shadow-xl ${isDark ? 'bg-gray-800' : 'bg-white'}`}>
                                 <DatePicker
                                     value={selectedDate}
                                     onChange={(newDate) => {
@@ -174,37 +174,37 @@ export function FilterBar({
                     >
                         →
                     </button>
-                    {/* Today Button */}
+                    {/* Today Button - Hide on tiny screens, show on mobile */}
                     {!isToday() && (
                         <button
                             onClick={goToToday}
-                            className={`ml-2 px-3 py-1 text-sm rounded transition-all ${isDark ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}
+                            className={`hidden sm:block ml-2 px-3 py-1 text-sm rounded transition-all ${isDark ? 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30' : 'bg-purple-100 text-purple-700 hover:bg-purple-200'}`}
                         >
                             ↩ Today
                         </button>
                     )}
                 </div>
 
-                {/* Right: View Mode Buttons */}
-                <div className={`flex items-center gap-2 rounded p-1 ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
+                {/* Right: View Mode Buttons - Full width on mobile for easier tapping */}
+                <div className={`flex items-center justify-center gap-2 rounded p-1 w-full md:w-auto ${isDark ? 'bg-white/5' : 'bg-gray-100'}`}>
                     <span className={`text-sm font-bold px-2 ${textMuted}`}>View:</span>
                     <button
                         onClick={() => onViewModeChange('day')}
-                        className={`px-3 py-1 text-sm rounded transition-all ${viewMode === 'day' ? filterBtnActive : filterBtnInactive}`}
+                        className={`flex-1 md:flex-none px-3 py-1 text-sm rounded transition-all ${viewMode === 'day' ? filterBtnActive : filterBtnInactive}`}
                         title="Day View"
                     >
                         Day
                     </button>
                     <button
                         onClick={() => onViewModeChange('week')}
-                        className={`px-3 py-1 text-sm rounded transition-all ${viewMode === 'week' ? filterBtnActive : filterBtnInactive}`}
+                        className={`flex-1 md:flex-none px-3 py-1 text-sm rounded transition-all ${viewMode === 'week' ? filterBtnActive : filterBtnInactive}`}
                         title="Week View"
                     >
                         Week
                     </button>
                     <button
                         onClick={() => onViewModeChange('month')}
-                        className={`px-3 py-1 text-sm rounded transition-all ${viewMode === 'month' ? filterBtnActive : filterBtnInactive}`}
+                        className={`flex-1 md:flex-none px-3 py-1 text-sm rounded transition-all ${viewMode === 'month' ? filterBtnActive : filterBtnInactive}`}
                         title="Month View"
                     >
                         Month
@@ -213,9 +213,9 @@ export function FilterBar({
             </div>
 
             {/* Filter Controls Row */}
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 w-full">
                 {/* Category Filter + Add Category */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1 min-w-[200px]">
                     <select
                         value={filterCategory}
                         onChange={(e) => onFilterCategoryChange(e.target.value)}
@@ -241,7 +241,7 @@ export function FilterBar({
                     <input
                         type="text"
                         placeholder="New Cat..."
-                        className={`${inputClass} text-sm rounded px-2 py-1 focus:outline-none w-24 border`}
+                        className={`${inputClass} text-sm rounded px-2 py-1 focus:outline-none flex-1 min-w-[80px] border`}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                                 onAddCategory(e.currentTarget.value)
@@ -265,28 +265,25 @@ export function FilterBar({
 
                 {/* Sort Controls (Day view only) - on same line as category */}
                 {onSortChange && showSortControls && (
-                    <>
-                        <div className={`h-4 w-px ${isDark ? 'bg-white/10' : 'bg-gray-200'}`} />
-                        <div className="flex items-center gap-2">
-                            <span className={`text-sm ${textMuted}`}>Sort:</span>
-                            <select
-                                value={sortBy}
-                                onChange={(e) => onSortChange(e.target.value as 'type' | 'priority' | 'due', sortOrder)}
-                                className={`${inputClass} text-sm rounded px-2 py-1 border focus:outline-none`}
-                            >
-                                <option value="type">Type</option>
-                                <option value="priority">Priority</option>
-                                <option value="due">Due Date</option>
-                            </select>
-                            <button
-                                onClick={() => onSortChange(sortBy, sortOrder === 'asc' ? 'desc' : 'asc')}
-                                className={`text-sm px-2 py-1 rounded transition-colors ${filterBtnInactive}`}
-                                title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                            >
-                                {sortOrder === 'asc' ? '↑' : '↓'}
-                            </button>
-                        </div>
-                    </>
+                    <div className="flex items-center gap-2 ml-auto">
+                        <span className={`text-sm ${textMuted}`}>Sort:</span>
+                        <select
+                            value={sortBy}
+                            onChange={(e) => onSortChange(e.target.value as 'type' | 'priority' | 'due', sortOrder)}
+                            className={`${inputClass} text-sm rounded px-2 py-1 border focus:outline-none`}
+                        >
+                            <option value="type">Type</option>
+                            <option value="priority">Priority</option>
+                            <option value="due">Due Date</option>
+                        </select>
+                        <button
+                            onClick={() => onSortChange(sortBy, sortOrder === 'asc' ? 'desc' : 'asc')}
+                            className={`text-sm px-2 py-1 rounded transition-colors ${filterBtnInactive}`}
+                            title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                        >
+                            {sortOrder === 'asc' ? '↑' : '↓'}
+                        </button>
+                    </div>
                 )}
             </div>
         </div>
