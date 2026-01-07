@@ -415,7 +415,15 @@ export function TaskEditModal({
                 </TabPanel>
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
+            <DialogActions sx={{
+                px: 3,
+                pb: 2,
+                display: 'flex',
+                justifyContent: 'space-between',
+                flexDirection: { xs: 'column-reverse', sm: 'row' },
+                gap: { xs: 1.5, sm: 0 },
+                alignItems: 'stretch'
+            }}>
                 <Button
                     onClick={() => {
                         confirmDelete(task.title, () => {
@@ -425,11 +433,21 @@ export function TaskEditModal({
                     }}
                     color="error"
                     variant="outlined"
+                    sx={{ width: { xs: '100%', sm: 'auto' } }}
                 >
-                    Delete Task
+                    Delete
                 </Button>
-                <Box>
-                    <Button onClick={onClose} color="inherit" sx={{ mr: 1 }}>
+                <Box sx={{
+                    display: 'flex',
+                    gap: 1,
+                    width: { xs: '100%', sm: 'auto' },
+                    flexDirection: { xs: 'column-reverse', sm: 'row' }
+                }}>
+                    <Button
+                        onClick={onClose}
+                        color="inherit"
+                        sx={{ width: { xs: '100%', sm: 'auto' } }}
+                    >
                         Cancel
                     </Button>
                     <Button
@@ -437,12 +455,13 @@ export function TaskEditModal({
                         disabled={saving || !title.trim()}
                         variant="contained"
                         sx={{
+                            width: { xs: '100%', sm: 'auto' },
                             background: '#f97316 !important',
                             '&:hover': { background: '#ea580c !important' },
                             '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
                         }}
                     >
-                        {saving ? <CircularProgress size={20} /> : 'Save Changes'}
+                        {saving ? <CircularProgress size={20} /> : 'Save'}
                     </Button>
                 </Box>
             </DialogActions>
