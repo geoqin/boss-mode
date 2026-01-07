@@ -112,7 +112,7 @@ export function DashboardHeader({
                             onClick={() => setDropdownOpen(!dropdownOpen)}
                             className="flex items-center gap-1.5 py-1 cursor-pointer"
                         >
-                            <span className={`${textMuted} text-xs ${dropdownOpen ? 'text-purple-400' : ''} transition-colors`}>
+                            <span className={`${textMuted} text-xs ${dropdownOpen ? 'text-orange-400' : ''} transition-colors`}>
                                 {displayName}
                             </span>
                             <span className={`${textMuted} text-[10px] transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>▼</span>
@@ -120,7 +120,7 @@ export function DashboardHeader({
 
                         {/* Dropdown Content */}
                         {dropdownOpen && (
-                            <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl shadow-2xl overflow-hidden animate-fade-in z-50 ${isDark ? 'bg-[#0f0c29] border border-white/10' : 'bg-white border border-gray-100'}`}>
+                            <div className={`absolute right-0 top-full mt-1 w-56 rounded-xl shadow-2xl overflow-hidden animate-fade-in z-50 ${isDark ? 'bg-[#27272a] border border-white/10' : 'bg-white border border-gray-100'}`}>
                                 <div className="p-4 border-b border-gray-100 dark:border-white/5">
                                     <p className={`text-xs ${isDark ? 'text-white/40' : 'text-gray-400'}`}>Signed in as</p>
                                     <p className={`text-sm font-medium truncate ${isDark ? 'text-white' : 'text-gray-900'}`}>{user?.email}</p>

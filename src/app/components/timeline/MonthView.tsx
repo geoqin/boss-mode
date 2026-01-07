@@ -174,14 +174,14 @@ export function MonthView({
                             aspect-square p-1 rounded-lg border transition-all
                             ${getCompletionColor(day.completionPercent)}
                             ${day.isToday
-                                ? (isDark ? 'ring-2 ring-purple-500' : 'ring-2 ring-purple-400')
+                                ? (isDark ? 'ring-2 ring-orange-500' : 'ring-2 ring-orange-400')
                                 : (day.totalTasks > 0 ? `border ${getCompletionBorder(day.completionPercent)}` : 'border-transparent')}
                             ${day.isCurrentMonth ? '' : 'opacity-40'}
                             hover:opacity-80 cursor-pointer
                         `}
                     >
                         <div className={`text-sm font-medium ${day.isToday
-                            ? (isDark ? 'text-purple-300' : 'text-purple-700')
+                            ? (isDark ? 'text-orange-300' : 'text-orange-700')
                             : (isDark ? 'text-white/80' : 'text-gray-700')}`}
                         >
                             {day.dayNum}
