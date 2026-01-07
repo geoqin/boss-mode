@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react"
 import { NewTask, Category } from "@/app/types"
-import { getLocalTodayDate } from "@/app/utils/dateUtils"
+import { getLocalTodayDate, formatLocalDateTime } from "@/app/utils/dateUtils"
 import { useMounted } from "@/hooks/useMounted"
 import {
   TextField,
@@ -99,7 +99,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
         if (dueTime) {
           const combined = new Date(finalDueDate)
           combined.setHours(dueTime.getHours(), dueTime.getMinutes(), 0)
-          isoDate = combined.toISOString()
+          isoDate = formatLocalDateTime(combined)
         } else {
           isoDate = format(finalDueDate, 'yyyy-MM-dd')
         }

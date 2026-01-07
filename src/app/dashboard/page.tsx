@@ -259,7 +259,8 @@ export default function DashboardPage() {
         due_date: updates.due_date,
         priority: updates.priority,
         recurrence: updates.recurrence,
-        category_id: updates.category_id
+        category_id: updates.category_id,
+        reminder_minutes_before: updates.reminder_minutes_before
       })
       .eq('id', updates.id)
 

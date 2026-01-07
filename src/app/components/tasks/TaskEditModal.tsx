@@ -31,6 +31,7 @@ import {
 import { DatePicker, TimePicker } from "@mui/x-date-pickers"
 import { parse, format } from "date-fns"
 import { useDeleteConfirm } from "@/app/components/DeleteConfirmProvider"
+import { formatLocalDateTime } from "@/app/utils/dateUtils"
 
 interface TaskEditModalProps {
     task: Task
@@ -123,7 +124,7 @@ export function TaskEditModal({
                 if (dueTime) {
                     const combined = new Date(dueDate)
                     combined.setHours(dueTime.getHours(), dueTime.getMinutes(), 0)
-                    isoDate = combined.toISOString()
+                    isoDate = formatLocalDateTime(combined)
                 } else {
                     isoDate = format(dueDate, 'yyyy-MM-dd')
                 }

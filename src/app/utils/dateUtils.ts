@@ -38,3 +38,18 @@ export function formatLocalDate(date: Date): string {
     const day = String(date.getDate()).padStart(2, '0')
     return `${year}-${month}-${day}`
 }
+
+/**
+ * Formats a Date object as an ISO-like string (YYYY-MM-DDTHH:mm:ss) in LOCAL time.
+ * Unlike toISOString() which converts to UTC, this preserves the local timezone,
+ * preventing issues where dates shift to "yesterday" due to timezone conversion.
+ */
+export function formatLocalDateTime(date: Date): string {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
+}
