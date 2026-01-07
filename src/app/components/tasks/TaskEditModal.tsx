@@ -30,6 +30,7 @@ import {
 } from "@mui/material"
 import { DatePicker, TimePicker } from "@mui/x-date-pickers"
 import { parse, format } from "date-fns"
+import { useDeleteConfirm } from "@/app/components/DeleteConfirmProvider"
 
 interface TaskEditModalProps {
     task: Task
@@ -40,6 +41,7 @@ interface TaskEditModalProps {
     instanceDate?: string | null
     onClose: () => void
     onUpdateTask: (task: Partial<Task> & { id: string }) => Promise<void>
+    onDeleteTask: (taskId: string) => Promise<void>
     onAddSubtask: (taskId: string, title: string) => Promise<void>
     onToggleSubtask: (subtaskId: string, completed: boolean) => Promise<void>
     onDeleteSubtask: (subtaskId: string) => Promise<void>
@@ -71,12 +73,14 @@ export function TaskEditModal({
     instanceDate,
     onClose,
     onUpdateTask,
+    onDeleteTask,
     onAddSubtask,
     onToggleSubtask,
     onDeleteSubtask,
     onAddComment,
     onDeleteComment,
 }: TaskEditModalProps) {
+    const { confirmDelete } = useDeleteConfirm()
     const [title, setTitle] = useState(task.title)
 
     // Parse date and time from ISO string
@@ -389,17 +393,31 @@ export function TaskEditModal({
                 </TabPanel>
             </DialogContent>
 
-            <DialogActions sx={{ px: 3, pb: 2 }}>
-                <Button onClick={onClose} color="inherit">
-                    Cancel
-                </Button>
+            <DialogActions sx={{ px: 3, pb: 2, justifyContent: 'space-between' }}>
                 <Button
-                    onClick={handleSave}
-                    disabled={saving || !title.trim()}
-                    variant="contained"
+                    onClick={() => {
+                        confirmDelete(task.title, () => {
+                            onDeleteTask(task.id)
+                            onClose()
+                        })
+                    }}
+                    color="error"
+                    variant="outlined"
                 >
-                    {saving ? <CircularProgress size={20} /> : 'Save Changes'}
+                    Delete Task
                 </Button>
+                <Box>
+                    <Button onClick={onClose} color="inherit" sx={{ mr: 1 }}>
+                        Cancel
+                    </Button>
+                    <Button
+                        onClick={handleSave}
+                        disabled={saving || !title.trim()}
+                        variant="contained"
+                    >
+                        {saving ? <CircularProgress size={20} /> : 'Save Changes'}
+                    </Button>
+                </Box>
             </DialogActions>
         </Dialog>
     )

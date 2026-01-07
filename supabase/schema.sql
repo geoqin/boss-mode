@@ -66,6 +66,17 @@ CREATE TABLE IF NOT EXISTS comments (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Recurring task completions table (habit-tracker style)
+-- Tracks individual completions for each instance of a recurring task
+CREATE TABLE IF NOT EXISTS recurring_task_completions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  task_id UUID REFERENCES tasks(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  instance_date DATE NOT NULL,           -- Which occurrence (YYYY-MM-DD)
+  completed_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(task_id, instance_date)         -- One completion record per task per day
+);
+
 -- Enable Row Level Security on all tables
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
@@ -73,6 +84,7 @@ ALTER TABLE user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subtasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE recurring_task_completions ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for categories
 CREATE POLICY "Users can view their own categories" ON categories
@@ -140,6 +152,16 @@ CREATE POLICY "Users can insert their own comments" ON comments
 CREATE POLICY "Users can delete their own comments" ON comments
   FOR DELETE USING (auth.uid() = user_id);
 
+-- RLS Policies for recurring_task_completions
+CREATE POLICY "Users can view their completions" ON recurring_task_completions
+  FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their completions" ON recurring_task_completions
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their completions" ON recurring_task_completions
+  FOR DELETE USING (auth.uid() = user_id);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
@@ -151,3 +173,6 @@ CREATE INDEX IF NOT EXISTS idx_subtasks_task_id ON subtasks(task_id);
 CREATE INDEX IF NOT EXISTS idx_subtasks_user_id ON subtasks(user_id);
 CREATE INDEX IF NOT EXISTS idx_comments_task_id ON comments(task_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id ON comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_completions_task_id ON recurring_task_completions(task_id);
+CREATE INDEX IF NOT EXISTS idx_completions_user_date ON recurring_task_completions(user_id, instance_date);
+CREATE INDEX IF NOT EXISTS idx_completions_instance_date ON recurring_task_completions(instance_date);

@@ -5,11 +5,13 @@ import { useAuth } from "@/app/components/auth/AuthProvider"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useDeleteConfirm } from "@/app/components/DeleteConfirmProvider"
 
 export default function AccountPage() {
     const { user, loading: authLoading } = useAuth()
     const supabase = useState(() => createClient())[0]
     const router = useRouter()
+    const { skipConfirmation, setSkipConfirmation } = useDeleteConfirm()
 
     const [firstName, setFirstName] = useState("")
     const [lastName, setLastName] = useState("")
@@ -255,6 +257,41 @@ export default function AccountPage() {
                                 </button>
                             </div>
                         </form>
+                    </div>
+
+                    {/* Preferences Section */}
+                    <div className={`${isDark ? 'glass-card' : 'bg-white shadow-xl border border-gray-100'} p-8 rounded-2xl animate-fade-in`}>
+                        <h2 className={`text-xl font-semibold mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>Preferences</h2>
+
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className={`font-medium ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                                        Delete Confirmation
+                                    </p>
+                                    <p className={`text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                                        Show confirmation dialog when deleting tasks
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => setSkipConfirmation(!skipConfirmation)}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${!skipConfirmation
+                                            ? 'bg-purple-500'
+                                            : isDark ? 'bg-white/20' : 'bg-gray-300'
+                                        }`}
+                                >
+                                    <span
+                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${!skipConfirmation ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
+                                    />
+                                </button>
+                            </div>
+                            {skipConfirmation && (
+                                <p className={`text-xs ${isDark ? 'text-yellow-400/80' : 'text-yellow-600'}`}>
+                                    ⚠️ Tasks will be deleted immediately without confirmation
+                                </p>
+                            )}
+                        </div>
                     </div>
 
                     {/* Security Section */}

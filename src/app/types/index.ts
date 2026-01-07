@@ -42,8 +42,23 @@ export interface RecurringTaskInstance {
   task: Task
   instanceDate: string // YYYY-MM-DD format
   isVirtual: boolean // true = generated instance, false = actual task occurrence
+  isCompleted: boolean // Whether this specific instance is completed
   commentCount: number
 }
+
+// Track individual completions for recurring tasks (habit-tracker model)
+export interface RecurringTaskCompletion {
+  id: string
+  task_id: string
+  user_id: string
+  instance_date: string  // YYYY-MM-DD
+  completed_at: string
+}
+
+// Timeline view configuration
+export type TimelineViewMode = 'day' | 'week' | 'month'
+export type TaskSortBy = 'type' | 'priority' | 'due'
+export type SortOrder = 'asc' | 'desc'
 
 export interface Category {
   id: string

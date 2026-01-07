@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Task, NewTask, Category, Subtask, Comment } from "@/app/types"
-import { TaskList } from "../components/tasks/Tasklist"
+import { Task, NewTask, Category, Subtask, Comment, RecurringTaskCompletion, TaskSortBy, SortOrder } from "@/app/types"
 import { TaskForm } from "../components/tasks/TaskForm"
 import { TaskEditModal } from "../components/tasks/TaskEditModal"
 import { TimelineView } from "../components/timeline/TimelineView"
@@ -10,27 +9,32 @@ import { DashboardHeader, FilterBar, ProgressBar } from "@/app/components/dashbo
 import { ErrorBoundary } from "@/app/components/ErrorBoundary"
 import { CategoryManager } from "@/app/components/CategoryManager"
 import { useAuth } from "@/app/components/auth/AuthProvider"
-import { MuiProvider, useTheme } from "@/lib/MuiProvider"
+import { useTheme } from "@/lib/MuiProvider"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useBossReminders } from "@/hooks/useBossReminders"
-import { getNextDueDate, shouldRevertToIncomplete, getPreviousDueDate } from "@/app/utils/taskUtils"
-import { getLocalTodayDate, formatLocalDate } from "@/app/utils/dateUtils"
-import { TaskHistoryModal } from "../components/tasks/TaskHistoryModal"
+import { isInstanceCompleted, getTasksForDate, getMissedTasks, getRecurringInstances } from "@/app/utils/taskUtils"
+import { getLocalTodayDate } from "@/app/utils/dateUtils"
 import { ReminderManager } from "../components/ReminderManager"
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [recurringCompletions, setRecurringCompletions] = useState<RecurringTaskCompletion[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'completed'>('all')
   const [filterCategory, setFilterCategory] = useState<string>('all')
-  const [viewMode, setViewMode] = useState<'list' | 'timeline'>('list')
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
+  // Use null initially to avoid hydration mismatch, then set on client
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
+  const [hideRecurring, setHideRecurring] = useState(false)
+  const [sortBy, setSortBy] = useState<TaskSortBy>('type')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [error, setError] = useState<string | null>(null)
   const { mode: theme, setMode } = useTheme()
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [profile, setProfile] = useState<{ first_name: string | null, last_name: string | null }>({ first_name: null, last_name: null })
+  const [isClient, setIsClient] = useState(false)
 
   // Modal states
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -38,15 +42,49 @@ export default function DashboardPage() {
   const [taskSubtasks, setTaskSubtasks] = useState<Subtask[]>([])
   const [taskComments, setTaskComments] = useState<Comment[]>([])
   const [showCategoryManager, setShowCategoryManager] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
+
+  // Set client-side date to avoid hydration mismatch
+  useEffect(() => {
+    setSelectedDate(new Date())
+    setIsClient(true)
+  }, [])
 
   const { user, signOut, loading: authLoading } = useAuth()
   const supabase = useState(() => createClient())[0]
   const router = useRouter()
   const { permission, requestPermission, sendTestNotification } = useNotifications()
 
-  // Boss Watch: Reminders
+  // Boss Watch: Reminders for upcoming/due tasks
   const { activeAlerts, acknowledge, snooze } = useBossReminders(tasks, notificationsEnabled)
+
+  // Missed recurring tasks notification (runs once per day on load)
+  useEffect(() => {
+    if (!notificationsEnabled || permission !== 'granted' || tasks.length === 0 || loading) return
+
+    const today = getLocalTodayDate()
+    const storageKey = 'boss-mode-missed-tasks-last-check'
+    const lastCheck = localStorage.getItem(storageKey)
+
+    if (lastCheck === today) return // Already checked today
+
+    import('@/app/utils/taskUtils').then(({ getMissedTasks }) => {
+      const missedTasks = getMissedTasks(tasks, recurringCompletions, today)
+
+      if (missedTasks.length > 0 && 'Notification' in window && Notification.permission === 'granted') {
+        const title = missedTasks.length === 1
+          ? "Missed Task Yesterday 😅"
+          : `${missedTasks.length} Missed Tasks Yesterday 😅`
+
+        const body = missedTasks.length === 1
+          ? `You missed: "${missedTasks[0].title}"`
+          : `You missed: ${missedTasks.slice(0, 3).map(t => t.title).join(', ')}${missedTasks.length > 3 ? ` and ${missedTasks.length - 3} more` : ''}`
+
+        new Notification(title, { body, icon: '/icon-192x192.png' })
+      }
+
+      localStorage.setItem(storageKey, today)
+    })
+  }, [tasks, recurringCompletions, notificationsEnabled, permission, loading])
 
   // Fetch tasks and categories from Supabase
   useEffect(() => {
@@ -86,81 +124,22 @@ export default function DashboardPage() {
 
       setTasks(tasksWithCounts)
 
-      // Roll over completed recurring tasks if necessary
-      const updatedTasks = [...tasksWithCounts]
-      let needsUpdate = false
+      // Fetch recurring task completions
+      const { data: completionsData } = await supabase
+        .from('recurring_task_completions')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (completionsData) {
+        setRecurringCompletions(completionsData)
+      }
+
+      // Check for missed recurring tasks from yesterday (for notification)
       const today = getLocalTodayDate()
-
-      for (let i = 0; i < updatedTasks.length; i++) {
-        const t = updatedTasks[i]
-        if (t.recurrence && t.completed) {
-          // If the task is completed and the day has passed, roll it over
-          // Check if it's "history" (completed yesterday or earlier)
-          const isHistory = t.completed_at ? t.completed_at.split('T')[0] < today : (t.due_date ? t.due_date < today : false)
-
-          if (isHistory) {
-            const nextDue = getNextDueDate(t)
-            if (nextDue) {
-              const nextDueDateStr = formatLocalDate(nextDue)
-              updatedTasks[i] = {
-                ...t,
-                completed: false,
-                completed_at: null,
-                due_date: nextDueDateStr
-              }
-              needsUpdate = true
-
-              // Persist to Supabase
-              await supabase
-                .from('tasks')
-                .update({
-                  completed: false,
-                  completed_at: null,
-                  due_date: nextDueDateStr
-                })
-                .eq('id', t.id)
-            }
-          }
-        }
-      }
-
-      if (needsUpdate) {
-        setTasks(updatedTasks)
-      }
-
-      // 2. Migrate legacy completed recurring tasks (marked done under old system today)
-      let needsMigrationUpdate = false
-      for (let i = 0; i < updatedTasks.length; i++) {
-        const t = updatedTasks[i]
-        // If it's recurring, not completed, has no completion record, but its previous date would be today
-        if (t.recurrence && !t.completed && !t.completed_at) {
-          const prevDue = getPreviousDueDate(t)
-          if (prevDue) {
-            const prevDueStr = formatLocalDate(prevDue)
-            if (prevDueStr === today) {
-              updatedTasks[i] = {
-                ...t,
-                completed: true,
-                completed_at: t.created_at, // Use created_at as a fallback or just now
-                due_date: today
-              }
-              needsMigrationUpdate = true
-
-              await supabase
-                .from('tasks')
-                .update({
-                  completed: true,
-                  completed_at: new Date().toISOString(),
-                  due_date: today
-                })
-                .eq('id', t.id)
-            }
-          }
-        }
-      }
-
-      if (needsMigrationUpdate) {
-        setTasks([...updatedTasks])
+      const missedTasks = getMissedTasks(tasksWithCounts, completionsData || [], today)
+      if (missedTasks.length > 0 && notificationsEnabled) {
+        // TODO: Trigger missed task notification
+        console.log('Missed tasks from yesterday:', missedTasks.map(t => t.title))
       }
 
       // Fetch Categories
@@ -292,56 +271,90 @@ export default function DashboardPage() {
 
   const toggleTask = async (id: string, instanceDate?: string) => {
     const task = tasks.find(t => t.id === id)
-    if (!task) return
+    if (!task || !user) return
     setError(null)
 
-    let newCompleted = !task.completed
-    let newDueDate = task.due_date
-
-    // Handle recurring tasks specially
     if (task.recurrence) {
-      // Just toggle the completed status
-      // We don't advance the due date here anymore. 
-      // It stays 'completed' for today, and rolls over on next refresh/load when the day changes.
-      newCompleted = !task.completed
-      newDueDate = task.due_date
-    }
-
-    // Optimistic update
-    setTasks(prev =>
-      prev.map(t =>
-        t.id === id
-          ? {
-            ...t,
-            completed: newCompleted,
-            due_date: newDueDate,
-            completed_at: newCompleted ? new Date().toISOString() : null
-          }
-          : t
+      // RECURRING TASK: Use completions table (habit-tracker model)
+      const dateToToggle = instanceDate || getLocalTodayDate()
+      const existingCompletion = recurringCompletions.find(
+        c => c.task_id === id && c.instance_date === dateToToggle
       )
-    )
 
-    // Persist to Supabase
-    const { error } = await supabase
-      .from('tasks')
-      .update({
-        completed: newCompleted,
-        due_date: newDueDate,
-        completed_at: newCompleted ? new Date().toISOString() : null
-      })
-      .eq('id', id)
+      if (existingCompletion) {
+        // Un-complete: remove from completions table
+        setRecurringCompletions(prev => prev.filter(c => c.id !== existingCompletion.id))
 
-    if (error) {
-      setTasks(prev => prev.map(t => t.id === id ? task : t))
+        const { error } = await supabase
+          .from('recurring_task_completions')
+          .delete()
+          .eq('id', existingCompletion.id)
+
+        if (error) {
+          // Rollback
+          setRecurringCompletions(prev => [...prev, existingCompletion])
+        }
+      } else {
+        // Complete: insert into completions table
+        const optimisticCompletion: RecurringTaskCompletion = {
+          id: crypto.randomUUID(),
+          task_id: id,
+          user_id: user.id,
+          instance_date: dateToToggle,
+          completed_at: new Date().toISOString()
+        }
+        setRecurringCompletions(prev => [...prev, optimisticCompletion])
+
+        const { data, error } = await supabase
+          .from('recurring_task_completions')
+          .insert({
+            task_id: id,
+            user_id: user.id,
+            instance_date: dateToToggle
+          })
+          .select()
+          .single()
+
+        if (error) {
+          // Rollback
+          setRecurringCompletions(prev => prev.filter(c => c.id !== optimisticCompletion.id))
+        } else if (data) {
+          // Update with real ID from server
+          setRecurringCompletions(prev =>
+            prev.map(c => c.id === optimisticCompletion.id ? data : c)
+          )
+        }
+      }
+    } else {
+      // ONE-OFF TASK: Toggle completed status on task itself
+      const newCompleted = !task.completed
+
+      // Optimistic update
+      setTasks(prev =>
+        prev.map(t =>
+          t.id === id
+            ? {
+              ...t,
+              completed: newCompleted,
+              completed_at: newCompleted ? new Date().toISOString() : null
+            }
+            : t
+        )
+      )
+
+      // Persist to Supabase
+      const { error } = await supabase
+        .from('tasks')
+        .update({
+          completed: newCompleted,
+          completed_at: newCompleted ? new Date().toISOString() : null
+        })
+        .eq('id', id)
+
+      if (error) {
+        setTasks(prev => prev.map(t => t.id === id ? task : t))
+      }
     }
-  }
-
-  // Restore task from history (un-complete)
-  const restoreTask = async (id: string) => {
-    const task = tasks.find(t => t.id === id)
-    if (!task) return
-    // Simple toggle back to incomplete
-    await toggleTask(id)
   }
 
   const deleteTask = async (id: string) => {
@@ -466,44 +479,57 @@ export default function DashboardPage() {
     setEditingInstanceDate(instanceDate || null)
   }
 
-  // --- Filtering Logic for History ---
-
+  // --- Filtering Logic ---
   const today = getLocalTodayDate()
+  const todayDate = new Date()
+  todayDate.setHours(0, 0, 0, 0)
 
-  // Identify history tasks (completed on previous days)
-  const historyTasks = tasks.filter(t => {
-    if (!t.completed) return false
+  // For progress bar: only count tasks that appear in TODAY's view (matching DayView filters)
+  const todaysTasks = tasks.filter(task => {
+    // Apply category filter
+    if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
+    // Apply hideRecurring filter
+    if (hideRecurring && task.recurrence) return false
 
-    // If completed_at exists, check if it's before today
-    if (t.completed_at) {
-      return t.completed_at.split('T')[0] < today
+    if (task.recurrence) {
+      // For recurring tasks: use getRecurringInstances to check if there's an instance today
+      const taskInstances = getRecurringInstances(task, todayDate, todayDate)
+      return taskInstances.includes(today)
+    } else {
+      // One-off task - match DayView logic exactly
+      const dueDate = task.due_date?.split('T')[0]
+      const completedDate = task.completed_at?.split('T')[0]
+
+      // Task is due today - always include (completed or not)
+      if (dueDate === today) {
+        return true
+      }
+      // Task was completed today (even if due on different day)
+      if (task.completed && completedDate === today) {
+        return true
+      }
+      // No due date - show if not completed OR if completed today
+      if (!dueDate) {
+        return !task.completed || completedDate === today
+      }
+      // Overdue - show if not completed
+      if (dueDate < today && !task.completed) {
+        return true
+      }
+      return false
     }
-
-    // Fallback: if no completed_at, check due_date
-    if (t.due_date) {
-      return t.due_date < today
-    }
-
-    // If neither (legacy), assume it's history if completed
-    return true
   })
 
-  // Current tasks (Active OR Completed Today)
-  // We exclude history tasks AND future recurring tasks (as they shouldn't clutter the list yet)
-  const currentTasks = tasks.filter(t => {
-    // 1. Exclude History
-    if (historyTasks.includes(t)) return false
+  // Calculate completion counts (using new completion tracking for recurring)
+  const getTaskCompletedForToday = (task: Task): boolean => {
+    if (task.recurrence) {
+      return isInstanceCompleted(task.id, today, recurringCompletions)
+    }
+    return task.completed
+  }
 
-    // 2. Exclude Future Recurring Tasks
-    // If it's recurring and due in the future, hide it until due date (rollover)
-    // Note: split('T')[0] ensures we compare only the date part, avoiding time discrepancies
-    if (t.recurrence && t.due_date && t.due_date.split('T')[0] > today) return false
-
-    return true
-  })
-
-  const completedCount = currentTasks.filter(t => t.completed).length
-  const totalCount = currentTasks.length
+  const completedCount = todaysTasks.filter(getTaskCompletedForToday).length
+  const totalCount = todaysTasks.length
   const isDark = theme === 'dark'
   const displayName = profile.first_name
     ? `${profile.first_name} ${profile.last_name || ''}`.trim()
@@ -512,47 +538,40 @@ export default function DashboardPage() {
   // Filter and Sort for Main List
   const priorityScore = { high: 3, medium: 2, low: 1 }
 
-  const filteredTasks = currentTasks
+  const filteredTasks = todaysTasks
     .filter(task => {
-      if (filterStatus === 'active' && task.completed) return false
-      if (filterStatus === 'completed' && !task.completed) return false
       if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
+      if (hideRecurring && task.recurrence) return false
       return true
     })
     .sort((a, b) => {
-      // 1. Priority (High to Low)
-      const pA = priorityScore[a.priority || 'medium']
-      const pB = priorityScore[b.priority || 'medium']
-      if (pA !== pB) return pB - pA
+      let comparison = 0
 
-      // 2. Due Date (Ascending - Earliest first)
-      // Null due dates go last
-      if (a.due_date && b.due_date) {
-        if (a.due_date !== b.due_date) return a.due_date.localeCompare(b.due_date)
-      } else if (a.due_date) {
-        return -1 // a has date, comes first
-      } else if (b.due_date) {
-        return 1 // b has date, comes first
+      switch (sortBy) {
+        case 'type':
+          comparison = (a.recurrence ? 1 : 0) - (b.recurrence ? 1 : 0)
+          break
+        case 'priority':
+          const pA = priorityScore[a.priority || 'medium']
+          const pB = priorityScore[b.priority || 'medium']
+          comparison = pB - pA
+          break
+        case 'due':
+          const dateA = a.due_date || ''
+          const dateB = b.due_date || ''
+          comparison = dateA.localeCompare(dateB)
+          break
       }
 
-      // 3. Created Date (Descending - Newest first)
-      // Or should it be Ascending to show oldest created first? 
-      // User said "by date created". Usually oldest first in todo lists prevents stagnation? 
-      // Let's go with Ascending (Oldest first) for consistent "clearing the queue" feel.
-      return a.created_at.localeCompare(b.created_at)
+      return sortOrder === 'desc' ? -comparison : comparison
     })
 
-  // Timeline should show ALL active tasks, including future recurring ones
-  // So we just exclude history (completed past tasks)
-  const timelineTasks = tasks.filter(t => !historyTasks.includes(t))
-    .filter(task => {
-      // Apply category filter if active
-      if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
-      // Apply status filter if active (though usually timeline shows all)
-      if (filterStatus === 'active' && task.completed) return false
-      if (filterStatus === 'completed' && !task.completed) return false
-      return true
-    })
+  // Timeline tasks - all tasks for timeline views
+  const timelineTasks = tasks.filter(task => {
+    if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
+    if (hideRecurring && task.recurrence) return false
+    return true
+  })
 
   // Theme styles
   const containerClass = isDark
@@ -592,7 +611,7 @@ export default function DashboardPage() {
             onThemeToggle={toggleTheme}
             onNotificationToggle={toggleNotifications}
             onSignOut={handleSignOut}
-            tasks={currentTasks}
+            tasks={todaysTasks}
           />
 
           {/* Error message */}
@@ -610,16 +629,23 @@ export default function DashboardPage() {
 
           <FilterBar
             isDark={isDark}
-            filterStatus={filterStatus}
             filterCategory={filterCategory}
             viewMode={viewMode}
+            selectedDate={selectedDate || new Date()}
             categories={categories}
-            onFilterStatusChange={setFilterStatus}
+            hideRecurring={hideRecurring}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
             onFilterCategoryChange={setFilterCategory}
             onViewModeChange={setViewMode}
+            onDateChange={setSelectedDate}
+            onHideRecurringChange={setHideRecurring}
+            onSortChange={(newSortBy, newOrder) => {
+              setSortBy(newSortBy)
+              setSortOrder(newOrder)
+            }}
             onAddCategory={addCategory}
             onManageCategories={() => setShowCategoryManager(true)}
-            onShowHistory={() => setShowHistory(true)}
           />
 
           {/* Main content card */}
@@ -627,23 +653,22 @@ export default function DashboardPage() {
             <TaskForm onAdd={addTask} categories={categories} theme={theme} />
 
             <div className="mt-4">
-              {viewMode === 'list' ? (
-                <TaskList
-                  tasks={filteredTasks}
-                  onToggle={toggleTask}
-                  onDelete={deleteTask}
-                  onEdit={handleEditTask}
-                  theme={theme}
-                />
-              ) : (
-                <TimelineView
-                  tasks={timelineTasks}
-                  onToggle={toggleTask}
-                  onDelete={deleteTask}
-                  onEdit={handleEditTask}
-                  theme={theme}
-                />
-              )}
+              <TimelineView
+                tasks={timelineTasks}
+                recurringCompletions={recurringCompletions}
+                viewMode={viewMode}
+                selectedDate={selectedDate || new Date()}
+                hideRecurring={hideRecurring}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onDateChange={setSelectedDate}
+                onViewModeChange={setViewMode}
+                onToggle={toggleTask}
+                onDelete={deleteTask}
+                onEdit={handleEditTask}
+                onHideRecurringChange={setHideRecurring}
+                theme={theme}
+              />
             </div>
           </div>
 
@@ -666,6 +691,11 @@ export default function DashboardPage() {
                 setTaskComments([])
               }}
               onUpdateTask={updateTask}
+              onDeleteTask={async (taskId) => {
+                await deleteTask(taskId)
+                setEditingTask(null)
+                setEditingInstanceDate(null)
+              }}
               onAddSubtask={addSubtask}
               onToggleSubtask={toggleSubtask}
               onDeleteSubtask={deleteSubtask}
@@ -684,19 +714,6 @@ export default function DashboardPage() {
               onClose={() => setShowCategoryManager(false)}
               onUpdateCategory={updateCategory}
               onDeleteCategory={deleteCategory}
-            />
-          )
-        }
-
-        {/* Task History Modal */}
-        {
-          showHistory && (
-            <TaskHistoryModal
-              historyTasks={historyTasks}
-              isDark={isDark}
-              onClose={() => setShowHistory(false)}
-              onDelete={deleteTask}
-              onRestore={restoreTask}
             />
           )
         }
