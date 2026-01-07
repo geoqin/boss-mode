@@ -47,6 +47,7 @@ interface TaskEditModalProps {
     onToggleSubtask: (subtaskId: string, completed: boolean) => Promise<void>
     onDeleteSubtask: (subtaskId: string) => Promise<void>
     onAddComment: (taskId: string, content: string, instanceDate?: string | null) => Promise<void>
+    onUpdateComment: (commentId: string, content: string) => Promise<void>
     onDeleteComment: (commentId: string) => Promise<void>
 }
 
@@ -79,6 +80,7 @@ export function TaskEditModal({
     onToggleSubtask,
     onDeleteSubtask,
     onAddComment,
+    onUpdateComment,
     onDeleteComment,
 }: TaskEditModalProps) {
     const { confirmDelete } = useDeleteConfirm()
@@ -109,6 +111,10 @@ export function TaskEditModal({
     const [newComment, setNewComment] = useState('')
     const [saving, setSaving] = useState(false)
     const [tabValue, setTabValue] = useState(0)
+
+    // Comment editing state
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
+    const [editingCommentContent, setEditingCommentContent] = useState('')
 
     const displayedComments = comments.filter(c => {
         if (!task.recurrence) return true
@@ -164,6 +170,23 @@ export function TaskEditModal({
         if (!newComment.trim()) return
         await onAddComment(task.id, newComment.trim(), instanceDate)
         setNewComment('')
+    }
+
+    const handleUpdateComment = async () => {
+        if (!editingCommentId || !editingCommentContent.trim()) return
+        await onUpdateComment(editingCommentId, editingCommentContent.trim())
+        setEditingCommentId(null)
+        setEditingCommentContent('')
+    }
+
+    const startEditingComment = (comment: Comment) => {
+        setEditingCommentId(comment.id)
+        setEditingCommentContent(comment.content)
+    }
+
+    const cancelEditingComment = () => {
+        setEditingCommentId(null)
+        setEditingCommentContent('')
     }
 
     useEffect(() => {
@@ -399,20 +422,63 @@ export function TaskEditModal({
                     ) : (
                         <List>
                             {displayedComments.map(comment => (
-                                <ListItem key={comment.id} alignItems="flex-start">
-                                    <ListItemText
-                                        primary={comment.content}
-                                        secondary={new Date(comment.created_at).toLocaleDateString()}
-                                    />
-                                    <ListItemSecondaryAction>
-                                        <IconButton
-                                            edge="end"
-                                            size="small"
-                                            onClick={() => onDeleteComment(comment.id)}
-                                        >
-                                            ✕
-                                        </IconButton>
-                                    </ListItemSecondaryAction>
+                                <ListItem key={comment.id} alignItems="flex-start" sx={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                                    {editingCommentId === comment.id ? (
+                                        // Edit mode
+                                        <Stack spacing={1} sx={{ width: '100%' }}>
+                                            <TextField
+                                                fullWidth
+                                                multiline
+                                                size="small"
+                                                value={editingCommentContent}
+                                                onChange={(e) => setEditingCommentContent(e.target.value)}
+                                                autoFocus
+                                            />
+                                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                                                <Button size="small" onClick={cancelEditingComment}>
+                                                    Cancel
+                                                </Button>
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    onClick={handleUpdateComment}
+                                                    disabled={!editingCommentContent.trim()}
+                                                    sx={{
+                                                        background: '#f97316 !important',
+                                                        '&:hover': { background: '#ea580c !important' },
+                                                        '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
+                                                    }}
+                                                >
+                                                    Save
+                                                </Button>
+                                            </Stack>
+                                        </Stack>
+                                    ) : (
+                                        // View mode
+                                        <Stack direction="row" alignItems="flex-start" sx={{ width: '100%' }}>
+                                            <ListItemText
+                                                primary={comment.content}
+                                                secondary={new Date(comment.created_at).toLocaleDateString()}
+                                                sx={{ flex: 1 }}
+                                            />
+                                            <Stack direction="row" spacing={0.5}>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => startEditingComment(comment)}
+                                                    title="Edit comment"
+                                                >
+                                                    ✏️
+                                                </IconButton>
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={() => onDeleteComment(comment.id)}
+                                                    title="Delete comment"
+                                                >
+                                                    ✕
+                                                </IconButton>
+                                            </Stack>
+                                        </Stack>
+                                    )}
                                 </ListItem>
                             ))}
                         </List>

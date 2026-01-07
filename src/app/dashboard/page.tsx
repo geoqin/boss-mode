@@ -428,6 +428,19 @@ export default function DashboardPage() {
     }
   }
 
+  const updateComment = async (commentId: string, content: string) => {
+    const { error } = await supabase
+      .from('comments')
+      .update({ content })
+      .eq('id', commentId)
+
+    if (!error) {
+      setTaskComments(prev => prev.map(c =>
+        c.id === commentId ? { ...c, content } : c
+      ))
+    }
+  }
+
   // Category handlers
   const addCategory = async (name: string) => {
     if (!user || !name.trim()) return
@@ -703,6 +716,7 @@ export default function DashboardPage() {
               onToggleSubtask={toggleSubtask}
               onDeleteSubtask={deleteSubtask}
               onAddComment={addComment}
+              onUpdateComment={updateComment}
               onDeleteComment={deleteComment}
             />
           )
