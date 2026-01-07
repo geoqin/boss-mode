@@ -199,8 +199,13 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                 boxShadow: '0 6px 16px rgba(249, 115, 22, 0.4)',
               },
               '&:disabled': {
-                background: 'rgba(255,255,255,0.1) !important',
-                color: 'rgba(255,255,255,0.3)'
+                background: theme === 'dark'
+                  ? 'rgba(255,255,255,0.1) !important'
+                  : 'rgba(0,0,0,0.08) !important',
+                color: theme === 'dark'
+                  ? 'rgba(255,255,255,0.3)'
+                  : 'rgba(0,0,0,0.35)',
+                boxShadow: 'none'
               }
             }}
           >
