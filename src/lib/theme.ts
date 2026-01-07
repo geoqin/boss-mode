@@ -22,11 +22,11 @@ const baseTheme: ThemeOptions = {
                     padding: '10px 24px',
                 },
                 containedPrimary: {
-                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
-                    boxShadow: '0 4px 15px rgba(139, 92, 246, 0.3)',
+                    background: 'linear-gradient(135deg, #f97316 0%, #ea580c 100%)',
+                    boxShadow: '0 4px 15px rgba(249, 115, 22, 0.3)',
                     '&:hover': {
-                        background: 'linear-gradient(135deg, #9f6ff8 0%, #8b5cf6 100%)',
-                        boxShadow: '0 8px 25px rgba(139, 92, 246, 0.4)',
+                        background: 'linear-gradient(135deg, #fb923c 0%, #f97316 100%)',
+                        boxShadow: '0 8px 25px rgba(249, 115, 22, 0.4)',
                     },
                 },
             },
@@ -59,7 +59,7 @@ const baseTheme: ThemeOptions = {
         MuiMenu: {
             styleOverrides: {
                 paper: {
-                    backgroundColor: '#1a1625', // Solid neutral color for menus
+                    backgroundColor: '#27272a', // Warm charcoal for menus
                     backgroundImage: 'none',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                 },
@@ -68,7 +68,7 @@ const baseTheme: ThemeOptions = {
         MuiPopover: {
             styleOverrides: {
                 paper: {
-                    backgroundColor: '#1a1625', // Solid neutral color for popovers (date pickers)
+                    backgroundColor: '#27272a', // Warm charcoal for popovers (date pickers)
                     backgroundImage: 'none',
                     border: '1px solid rgba(255, 255, 255, 0.12)',
                 },
@@ -82,18 +82,18 @@ export const darkTheme = createTheme({
     palette: {
         mode: 'dark',
         primary: {
-            main: '#8b5cf6', // Purple
-            light: '#a78bfa',
-            dark: '#7c3aed',
+            main: '#f97316', // Orange
+            light: '#fb923c',
+            dark: '#ea580c',
         },
         secondary: {
-            main: '#ec4899', // Pink
-            light: '#f472b6',
-            dark: '#db2777',
+            main: '#facc15', // Yellow/Gold
+            light: '#fde047',
+            dark: '#eab308',
         },
         background: {
-            default: '#0f0a1a',
-            paper: '#1a1625', // Changed from rgba to solid
+            default: '#18181b', // Warm charcoal
+            paper: '#27272a', // Slightly lighter charcoal
         },
         text: {
             primary: '#f5f5f7',
@@ -116,14 +116,14 @@ export const lightTheme = createTheme({
     palette: {
         mode: 'light',
         primary: {
-            main: '#8b5cf6',
-            light: '#a78bfa',
-            dark: '#7c3aed',
+            main: '#f97316', // Orange
+            light: '#fb923c',
+            dark: '#ea580c',
         },
         secondary: {
-            main: '#ec4899',
-            light: '#f472b6',
-            dark: '#db2777',
+            main: '#facc15', // Yellow/Gold
+            light: '#fde047',
+            dark: '#eab308',
         },
         background: {
             default: '#f9fafb',

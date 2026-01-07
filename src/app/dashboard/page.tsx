@@ -138,8 +138,7 @@ export default function DashboardPage() {
       const today = getLocalTodayDate()
       const missedTasks = getMissedTasks(tasksWithCounts, completionsData || [], today)
       if (missedTasks.length > 0 && notificationsEnabled) {
-        // TODO: Trigger missed task notification
-        console.log('Missed tasks from yesterday:', missedTasks.map(t => t.title))
+        // Missed tasks from yesterday are tracked but notification logic is handled elsewhere
       }
 
       // Fetch Categories

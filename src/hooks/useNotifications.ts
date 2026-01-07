@@ -18,7 +18,7 @@ export function useNotifications() {
         if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
             navigator.serviceWorker.register('/sw.js')
                 .then(registration => {
-                    console.log('Service Worker registered:', registration)
+                    // Service Worker registered successfully
                     setSwRegistration(registration)
                 })
                 .catch(error => {

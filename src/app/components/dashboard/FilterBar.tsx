@@ -213,7 +213,7 @@ export function FilterBar({
             </div>
 
             {/* Filter Controls Row */}
-            <div className="flex flex-col min-[450px]:flex-row items-center justify-between gap-1 w-full">
+            <div className="flex flex-col min-[450px]:flex-row items-end min-[450px]:items-center justify-between gap-1 w-full">
                 {/* Category Filter + Add Category */}
                 <div className="flex items-center gap-2 w-full min-[450px]:w-auto min-[450px]:flex-1 min-w-0 mr-0">
                     <select

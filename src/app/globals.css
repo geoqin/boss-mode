@@ -5,9 +5,7 @@
   --foreground: #f5f5f7;
   --card-bg: rgba(255, 255, 255, 0.05);
   --card-border: rgba(255, 255, 255, 0.1);
-  --accent-purple: #8b5cf6;
-  --accent-pink: #ec4899;
-  --accent-blue: #3b82f6;
+  --accent-orange: #f97316;
   --success: #10b981;
   --warning: #f59e0b;
   --danger: #ef4444;
@@ -74,12 +72,12 @@ body {
   border: none;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+  box-shadow: 0 8px 25px rgba(249, 115, 22, 0.4);
 }
 
 .btn-primary:active {
@@ -195,29 +193,7 @@ body {
   background: rgba(239, 68, 68, 0.1);
 }
 
-/* Boss message styles */
-.boss-message {
-  border-radius: 16px;
-  padding: 20px;
-  margin-top: 24px;
-  transition: all 0.3s ease;
-}
 
-.boss-message.calm {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
-  border: 1px solid rgba(16, 185, 129, 0.3);
-}
-
-.boss-message.stern {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(245, 158, 11, 0.05));
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.boss-message.angry {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.05));
-  border: 1px solid rgba(239, 68, 68, 0.4);
-  animation: pulse-danger 2s infinite;
-}
 
 /* Animations */
 @keyframes float {
@@ -302,7 +278,7 @@ body {
 }
 
 /* Glow effects */
-.glow-purple {
+.glow-orange {
   box-shadow: 0 0 40px rgba(249, 115, 22, 0.3);
 }
 
