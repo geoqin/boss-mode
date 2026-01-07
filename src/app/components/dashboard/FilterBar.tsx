@@ -267,22 +267,24 @@ export function FilterBar({
                 {onSortChange && showSortControls && (
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <span className={`text-sm ${textMuted}`}>Sort:</span>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => onSortChange(e.target.value as 'type' | 'priority' | 'due', sortOrder)}
-                            className={`${inputClass} text-sm rounded px-2 py-1 border focus:outline-none`}
-                        >
-                            <option value="type">Type</option>
-                            <option value="priority">Priority</option>
-                            <option value="due">Due Date</option>
-                        </select>
-                        <button
-                            onClick={() => onSortChange(sortBy, sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className={`text-sm px-2 py-1 rounded transition-colors ${filterBtnInactive}`}
-                            title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-                        >
-                            {sortOrder === 'asc' ? '↑' : '↓'}
-                        </button>
+                        <div className="flex items-center gap-1">
+                            <select
+                                value={sortBy}
+                                onChange={(e) => onSortChange(e.target.value as 'type' | 'priority' | 'due', sortOrder)}
+                                className={`${inputClass} text-sm rounded px-2 py-1 border focus:outline-none`}
+                            >
+                                <option value="type">Type</option>
+                                <option value="priority">Priority</option>
+                                <option value="due">Due Date</option>
+                            </select>
+                            <button
+                                onClick={() => onSortChange(sortBy, sortOrder === 'asc' ? 'desc' : 'asc')}
+                                className={`text-sm px-1 py-1 rounded transition-colors ${filterBtnInactive}`}
+                                title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
+                            >
+                                {sortOrder === 'asc' ? '↑' : '↓'}
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
