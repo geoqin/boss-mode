@@ -232,7 +232,7 @@ export function TaskEditModal({
                             />
                         </Stack>
 
-                        <FormControl fullWidth disabled={!canSetReminder}>
+                        <FormControl fullWidth size="small" disabled={!canSetReminder}>
                             <InputLabel id="reminder-label">Remind Me</InputLabel>
                             <Select
                                 labelId="reminder-label"
@@ -240,6 +240,7 @@ export function TaskEditModal({
                                 value={reminder}
                                 onChange={e => setReminder(e.target.value)}
                                 label="Remind Me"
+                                size="small"
                             >
                                 <MenuItem value="">None</MenuItem>
                                 <MenuItem value="15">15 minutes before</MenuItem>
@@ -254,12 +255,13 @@ export function TaskEditModal({
                             )}
                         </FormControl>
 
-                        <FormControl fullWidth>
+                        <FormControl fullWidth size="small">
                             <InputLabel>Priority</InputLabel>
                             <Select
                                 value={priority}
                                 onChange={e => setPriority(e.target.value as 'low' | 'medium' | 'high')}
                                 label="Priority"
+                                size="small"
                             >
                                 <MenuItem value="low">Low</MenuItem>
                                 <MenuItem value="medium">Medium</MenuItem>
@@ -267,7 +269,7 @@ export function TaskEditModal({
                             </Select>
                         </FormControl>
 
-                        <FormControl fullWidth>
+                        <FormControl fullWidth size="small">
                             <InputLabel id="recurrence-label">Recurrence</InputLabel>
                             <Select
                                 labelId="recurrence-label"
@@ -275,6 +277,7 @@ export function TaskEditModal({
                                 value={recurrence}
                                 onChange={e => setRecurrence(e.target.value)}
                                 label="Recurrence"
+                                size="small"
                             >
                                 <MenuItem value="">No Repeat</MenuItem>
                                 <MenuItem value="daily">Daily</MenuItem>
@@ -283,12 +286,13 @@ export function TaskEditModal({
                             </Select>
                         </FormControl>
 
-                        <FormControl fullWidth>
+                        <FormControl fullWidth size="small">
                             <InputLabel>Category</InputLabel>
                             <Select
                                 value={categoryId}
                                 onChange={e => setCategoryId(e.target.value)}
                                 label="Category"
+                                size="small"
                             >
                                 <MenuItem value="">No Category</MenuItem>
                                 {categories.map(cat => (

@@ -22,7 +22,7 @@ import {
   CalendarMonth,
   AccessTime,
   NotificationsActive,
-  Flag,
+  PriorityHigh,
   Repeat,
   Label,
 } from "@mui/icons-material"
@@ -256,7 +256,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                       </Box>
                     )}
                   </FormControl>
-                  <FieldIcon icon={<Flag fontSize="small" />} label="Priority" />
+                  <FieldIcon icon={<PriorityHigh fontSize="small" />} label="Priority" />
                   <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
                     <Select value={priority} onChange={e => setPriority(e.target.value as "low" | "medium" | "high")}>
                       <MenuItem value="low">🟢</MenuItem>
