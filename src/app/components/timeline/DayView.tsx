@@ -259,8 +259,7 @@ export function DayView({
                 className={`${isDark
                     ? 'bg-white/5 border-white/10 hover:bg-white/10'
                     : 'bg-white border-gray-200 hover:shadow-md'} 
-                    border rounded-xl p-4 transition-all duration-300 flex items-center gap-4
-                    ${isCompleted ? 'opacity-60' : ''}`}
+                    border rounded-xl p-4 transition-all duration-300 flex items-center gap-4`}
             >
                 {/* Checkbox area - larger click zone */}
                 <div
@@ -280,7 +279,7 @@ export function DayView({
 
                 {/* Task content - clickable to edit */}
                 <div
-                    className="flex flex-col flex-1 min-w-0 cursor-pointer"
+                    className={`flex flex-col flex-1 min-w-0 cursor-pointer ${isCompleted ? 'opacity-60' : ''}`}
                     onClick={() => onEdit(task, instanceDate)}
                 >
                     <span className={`block font-medium truncate ${isDark ? 'text-white/90' : 'text-gray-900'} ${isCompleted ? 'line-through' : ''}`}>

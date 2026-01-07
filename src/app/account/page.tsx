@@ -178,7 +178,10 @@ export default function AccountPage() {
 
             <div className="relative z-10 max-w-xl mx-auto px-6 py-12">
                 <header className="mb-8 animate-fade-in">
-                    <Link href="/dashboard" className="inline-flex items-center text-sm text-white/40 hover:text-white/60 transition-colors mb-4">
+                    <Link
+                        href="/dashboard"
+                        className={`inline-flex items-center text-sm transition-colors mb-4 ${isDark ? 'text-white/40 hover:text-white/60' : 'text-gray-500 hover:text-gray-900'}`}
+                    >
                         ← Back to Dashboard
                     </Link>
                     <div className="flex items-center gap-4">

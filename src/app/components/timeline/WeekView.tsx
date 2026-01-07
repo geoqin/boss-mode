@@ -209,16 +209,16 @@ export function WeekView({
                                     <th
                                         key={day.dateStr}
                                         className={`p-2 text-center border ${cellClass} ${headerClass} cursor-pointer hover:opacity-80 transition-opacity min-w-[60px]
-                                            ${day.isToday ? (isDark ? 'bg-purple-500/20' : 'bg-purple-100') : ''}`}
+                                            ${day.isToday ? (isDark ? 'bg-orange-500/20' : 'bg-orange-100') : ''}`}
                                         onClick={() => {
                                             onDateChange(day.date)
                                             onViewModeChange?.('day')
                                         }}
                                     >
-                                        <div className={`text-xs ${day.isToday ? (isDark ? 'text-purple-300' : 'text-purple-700') : ''}`}>
+                                        <div className={`text-xs ${day.isToday ? (isDark ? 'text-orange-300' : 'text-orange-700') : ''}`}>
                                             {day.dayName}
                                         </div>
-                                        <div className={`font-bold ${day.isToday ? (isDark ? 'text-purple-300' : 'text-purple-700') : ''}`}>
+                                        <div className={`font-bold ${day.isToday ? (isDark ? 'text-orange-300' : 'text-orange-700') : ''}`}>
                                             {day.dayNum}
                                         </div>
                                     </th>
@@ -244,7 +244,7 @@ export function WeekView({
                                             <td
                                                 key={day.dateStr}
                                                 className={`p-2 text-center border ${cellClass} 
-                                                    ${day.isToday ? (isDark ? 'bg-purple-500/10' : 'bg-purple-50') : ''}
+                                                    ${day.isToday ? (isDark ? 'bg-orange-500/10' : 'bg-orange-50') : ''}
                                                     ${!hasInstance ? 'opacity-30' : ''}`}
                                             >
                                                 {hasInstance && (

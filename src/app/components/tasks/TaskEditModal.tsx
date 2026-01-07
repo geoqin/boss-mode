@@ -193,7 +193,14 @@ export function TaskEditModal({
             </DialogTitle>
 
             <Box sx={{ borderBottom: 1, borderColor: 'divider', px: 3 }}>
-                <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
+                <Tabs
+                    value={tabValue}
+                    onChange={(_, v) => setTabValue(v)}
+                    sx={{
+                        '& .MuiTabs-indicator': { backgroundColor: '#f97316 !important' },
+                        '& .Mui-selected': { color: '#f97316 !important' }
+                    }}
+                >
                     <Tab label="Details" />
                     <Tab label={`Subtasks (${subtasks.length})`} />
                     <Tab label={`Comments (${displayedComments.length})`} />
@@ -306,6 +313,11 @@ export function TaskEditModal({
                             onClick={handleAddSubtask}
                             disabled={!newSubtask.trim()}
                             variant="contained"
+                            sx={{
+                                background: '#f97316 !important',
+                                '&:hover': { background: '#ea580c !important' },
+                                '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
+                            }}
                         >
                             Add
                         </Button>
@@ -325,6 +337,7 @@ export function TaskEditModal({
                                             edge="start"
                                             checked={subtask.completed}
                                             onChange={() => onToggleSubtask(subtask.id, !subtask.completed)}
+                                            sx={{ '&.Mui-checked': { color: '#f97316' } }}
                                         />
                                     </ListItemIcon>
                                     <ListItemText
@@ -363,6 +376,11 @@ export function TaskEditModal({
                             onClick={handleAddComment}
                             disabled={!newComment.trim()}
                             variant="contained"
+                            sx={{
+                                background: '#f97316 !important',
+                                '&:hover': { background: '#ea580c !important' },
+                                '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
+                            }}
                         >
                             Add
                         </Button>
@@ -418,6 +436,11 @@ export function TaskEditModal({
                         onClick={handleSave}
                         disabled={saving || !title.trim()}
                         variant="contained"
+                        sx={{
+                            background: '#f97316 !important',
+                            '&:hover': { background: '#ea580c !important' },
+                            '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
+                        }}
                     >
                         {saving ? <CircularProgress size={20} /> : 'Save Changes'}
                     </Button>
