@@ -115,7 +115,7 @@ export function ReminderManager({ alerts, onAcknowledge, onSnooze }: ReminderMan
                     onClick={() => onAcknowledge(task.id)}
                     sx={{ borderRadius: 2 }}
                 >
-                    I'm working on it (Dismiss)
+                    I&apos;m working on it (Dismiss)
                 </Button>
             </DialogActions>
         </Dialog>

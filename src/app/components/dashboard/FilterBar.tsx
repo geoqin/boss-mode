@@ -240,7 +240,7 @@ export function FilterBar({
                     {/* Add Category (always next to category filter) */}
                     <input
                         type="text"
-                        placeholder="New Cat..."
+                        placeholder="New Category"
                         className={`${inputClass} text-sm rounded px-2 py-1 focus:outline-none flex-1 min-w-[80px] border`}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {

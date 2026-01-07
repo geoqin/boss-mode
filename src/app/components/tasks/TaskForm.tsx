@@ -139,192 +139,224 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
   )
 
   return (
-    <Paper
+    <Box
       component="form"
       ref={formRef}
       onSubmit={submit}
-      elevation={0}
       sx={{
-        p: 1,
-        bgcolor: theme === 'dark' ? '#2d2b3b' : 'background.paper',
-        border: 1,
-        borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'divider',
-        borderRadius: 3,
+        p: theme === 'dark' ? '2px' : 0,
+        borderRadius: '16px', // Matches Outer Radius
+        background: theme === 'dark' ? 'linear-gradient(135deg, #f97316, #facc15)' : 'none',
+        position: 'relative',
+        transition: 'all 0.3s ease',
       }}
     >
-      <Stack direction="row" spacing={1} alignItems="center">
-        <TextField
-          value={title}
-          onChange={e => setTitle(e.target.value)}
-          onFocus={() => setIsExpanded(true)}
-          placeholder="What needs to be done?"
-          disabled={isSubmitting}
-          fullWidth
-          size="small"
-          variant="standard"
-          InputProps={{
-            disableUnderline: true,
-            sx: { px: 1.5, py: 1 }
-          }}
-        />
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={isSubmitting || !title.trim()}
-          sx={{ minWidth: 90, height: 40, whiteSpace: 'nowrap', borderRadius: '20px' }}
-        >
-          {isSubmitting ? (
-            <CircularProgress size={20} color="inherit" />
-          ) : (
-            'Add →'
-          )}
-        </Button>
-      </Stack>
+      <Paper
+        elevation={0}
+        sx={{
+          p: 1,
+          // Composite: Tint over Neutral Dark Gray (instead of Page Color) to avoid purple cast
+          background: theme === 'dark'
+            ? 'linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), #1f1f1f'
+            : 'background.paper',
+          border: theme === 'dark' ? 'none' : 1,
+          borderColor: 'divider',
+          borderRadius: theme === 'dark' ? '14px' : 3, // 16px - 2px padding = 14px
+          height: '100%',
+        }}
+      >
+        <Stack direction="row" spacing={1} alignItems="center">
+          <TextField
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            onFocus={() => setIsExpanded(true)}
+            placeholder="What needs to be done?"
+            disabled={isSubmitting}
+            fullWidth
+            size="small"
+            variant="standard"
+            InputProps={{
+              disableUnderline: true,
+              sx: { px: 1.5, py: 1 }
+            }}
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={isSubmitting || !title.trim()}
+            sx={{
+              minWidth: 90,
+              height: 40,
+              whiteSpace: 'nowrap',
+              borderRadius: '20px',
+              background: '#f97316 !important', // Force orange
+              color: 'white',
+              boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',
+              textTransform: 'none',
+              fontWeight: 600,
+              '&:hover': {
+                background: '#ea580c !important',
+                boxShadow: '0 6px 16px rgba(249, 115, 22, 0.4)',
+              },
+              '&:disabled': {
+                background: 'rgba(255,255,255,0.1) !important',
+                color: 'rgba(255,255,255,0.3)'
+              }
+            }}
+          >
+            {isSubmitting ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              'Add →'
+            )}
+          </Button>
+        </Stack>
 
-      <Collapse in={isExpanded}>
-        <Box sx={{ mt: 2, px: 1 }}>
-          {isMobile ? (
-            // Mobile: Stacked rows
-            <Stack spacing={1.5}>
-              {/* Row 1: Due Date (full width) */}
-              <Stack direction="row" alignItems="center">
-                <FieldIcon icon={<CalendarMonth fontSize="small" />} label="Due Date" />
-                <DatePicker
-                  value={dueDate}
-                  onChange={setDueDate}
-                  disabled={isSubmitting}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                />
-              </Stack>
+        <Collapse in={isExpanded}>
+          <Box sx={{ mt: 2, px: 1 }}>
+            {isMobile ? (
+              // Mobile: Stacked rows
+              <Stack spacing={1.5}>
+                {/* Row 1: Due Date (full width) */}
+                <Stack direction="row" alignItems="center">
+                  <FieldIcon icon={<CalendarMonth fontSize="small" />} label="Due Date" />
+                  <DatePicker
+                    value={dueDate}
+                    onChange={setDueDate}
+                    disabled={isSubmitting}
+                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                  />
+                </Stack>
 
-              {/* Row 2: Time (full width) */}
-              <Stack direction="row" alignItems="center">
-                <FieldIcon icon={<AccessTime fontSize="small" />} label="Time" />
-                <TimePicker
-                  value={dueTime}
-                  onChange={setDueTime}
-                  disabled={isSubmitting}
-                  slotProps={{ textField: { size: 'small', fullWidth: true } }}
-                />
-              </Stack>
+                {/* Row 2: Time (full width) */}
+                <Stack direction="row" alignItems="center">
+                  <FieldIcon icon={<AccessTime fontSize="small" />} label="Time" />
+                  <TimePicker
+                    value={dueTime}
+                    onChange={setDueTime}
+                    disabled={isSubmitting}
+                    slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                  />
+                </Stack>
 
-              {/* Row 3: Reminder + Priority */}
-              <Stack direction="row" spacing={1} alignItems="center">
-                <FieldIcon icon={<NotificationsActive fontSize="small" />} label="Remind" />
-                <FormControl size="small" sx={{ flex: 1 }} disabled={!canSetReminder || isSubmitting}>
-                  <Select value={reminder} onChange={e => setReminder(e.target.value)} displayEmpty>
-                    <MenuItem value="">—</MenuItem>
-                    <MenuItem value="15">15m</MenuItem>
-                    <MenuItem value="30">30m</MenuItem>
-                    <MenuItem value="60">1h</MenuItem>
-                    <MenuItem value="1440">1d</MenuItem>
-                  </Select>
-                  {reminder && typeof window !== 'undefined' && Notification.permission === 'denied' && (
-                    <Box sx={{ color: 'warning.main', fontSize: '0.7rem', mt: 0.5, px: 0.5 }}>
-                      Notifications blocked. In-app only.
-                    </Box>
-                  )}
-                </FormControl>
-                <FieldIcon icon={<Flag fontSize="small" />} label="Priority" />
-                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
-                  <Select value={priority} onChange={e => setPriority(e.target.value as "low" | "medium" | "high")}>
-                    <MenuItem value="low">🟢</MenuItem>
-                    <MenuItem value="medium">🟡</MenuItem>
-                    <MenuItem value="high">🔴</MenuItem>
-                  </Select>
-                </FormControl>
-              </Stack>
+                {/* Row 3: Reminder + Priority */}
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <FieldIcon icon={<NotificationsActive fontSize="small" />} label="Remind" />
+                  <FormControl size="small" sx={{ flex: 1 }} disabled={!canSetReminder || isSubmitting}>
+                    <Select value={reminder} onChange={e => setReminder(e.target.value)} displayEmpty>
+                      <MenuItem value="">—</MenuItem>
+                      <MenuItem value="15">15m</MenuItem>
+                      <MenuItem value="30">30m</MenuItem>
+                      <MenuItem value="60">1h</MenuItem>
+                      <MenuItem value="1440">1d</MenuItem>
+                    </Select>
+                    {reminder && typeof window !== 'undefined' && Notification.permission === 'denied' && (
+                      <Box sx={{ color: 'warning.main', fontSize: '0.7rem', mt: 0.5, px: 0.5 }}>
+                        Notifications blocked. In-app only.
+                      </Box>
+                    )}
+                  </FormControl>
+                  <FieldIcon icon={<Flag fontSize="small" />} label="Priority" />
+                  <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                    <Select value={priority} onChange={e => setPriority(e.target.value as "low" | "medium" | "high")}>
+                      <MenuItem value="low">🟢</MenuItem>
+                      <MenuItem value="medium">🟡</MenuItem>
+                      <MenuItem value="high">🔴</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Stack>
 
-              {/* Row 4: Category + Repeat */}
-              <Stack direction="row" spacing={1} alignItems="center">
-                <FieldIcon icon={<Label fontSize="small" />} label="Category" />
-                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
-                  <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} displayEmpty>
-                    <MenuItem value="">—</MenuItem>
-                    {categories.map(cat => (
-                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-                <FieldIcon icon={<Repeat fontSize="small" />} label="Repeat" />
-                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
-                  <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} displayEmpty>
-                    <MenuItem value="">—</MenuItem>
-                    <MenuItem value="daily">D</MenuItem>
-                    <MenuItem value="weekly">W</MenuItem>
-                    <MenuItem value="monthly">M</MenuItem>
-                  </Select>
-                </FormControl>
+                {/* Row 4: Category + Repeat */}
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <FieldIcon icon={<Label fontSize="small" />} label="Category" />
+                  <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                    <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} displayEmpty>
+                      <MenuItem value="">—</MenuItem>
+                      {categories.map(cat => (
+                        <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FieldIcon icon={<Repeat fontSize="small" />} label="Repeat" />
+                  <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                    <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} displayEmpty>
+                      <MenuItem value="">—</MenuItem>
+                      <MenuItem value="daily">D</MenuItem>
+                      <MenuItem value="weekly">W</MenuItem>
+                      <MenuItem value="monthly">M</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Stack>
               </Stack>
-            </Stack>
-          ) : (
-            // Desktop: Organized rows with proper sizing
-            <Stack spacing={2}>
-              {/* Row 1: Due Date + Time */}
-              <Stack direction="row" spacing={2}>
-                <DatePicker
-                  label="Due Date"
-                  value={dueDate}
-                  onChange={setDueDate}
-                  disabled={isSubmitting}
-                  slotProps={{ textField: { size: 'small', sx: { flex: 1 } } }}
-                />
-                <TimePicker
-                  label="Time"
-                  value={dueTime}
-                  onChange={setDueTime}
-                  disabled={isSubmitting}
-                  slotProps={{ textField: { size: 'small', sx: { flex: 1 } } }}
-                />
-              </Stack>
+            ) : (
+              // Desktop: Organized rows with proper sizing
+              <Stack spacing={2}>
+                {/* Row 1: Due Date + Time */}
+                <Stack direction="row" spacing={2}>
+                  <DatePicker
+                    label="Due Date"
+                    value={dueDate}
+                    onChange={setDueDate}
+                    disabled={isSubmitting}
+                    slotProps={{ textField: { size: 'small', sx: { flex: 1 } } }}
+                  />
+                  <TimePicker
+                    label="Time"
+                    value={dueTime}
+                    onChange={setDueTime}
+                    disabled={isSubmitting}
+                    slotProps={{ textField: { size: 'small', sx: { flex: 1 } } }}
+                  />
+                </Stack>
 
-              {/* Row 2: Reminder (wider) + Priority (narrower) */}
-              <Stack direction="row" spacing={2}>
-                <FormControl size="small" sx={{ flex: 2 }} disabled={!canSetReminder || isSubmitting}>
-                  <InputLabel>Remind Me</InputLabel>
-                  <Select value={reminder} onChange={e => setReminder(e.target.value)} label="Remind Me">
-                    <MenuItem value="">None</MenuItem>
-                    <MenuItem value="15">15 minutes before</MenuItem>
-                    <MenuItem value="30">30 minutes before</MenuItem>
-                    <MenuItem value="60">1 hour before</MenuItem>
-                    <MenuItem value="1440">1 day before</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
-                  <InputLabel>Priority</InputLabel>
-                  <Select value={priority} onChange={e => setPriority(e.target.value as "low" | "medium" | "high")} label="Priority">
-                    <MenuItem value="low">Low</MenuItem>
-                    <MenuItem value="medium">Medium</MenuItem>
-                    <MenuItem value="high">High</MenuItem>
-                  </Select>
-                </FormControl>
-              </Stack>
+                {/* Row 2: Reminder (wider) + Priority (narrower) */}
+                <Stack direction="row" spacing={2}>
+                  <FormControl size="small" sx={{ flex: 2 }} disabled={!canSetReminder || isSubmitting}>
+                    <InputLabel>Remind Me</InputLabel>
+                    <Select value={reminder} onChange={e => setReminder(e.target.value)} label="Remind Me">
+                      <MenuItem value="">None</MenuItem>
+                      <MenuItem value="15">15 minutes before</MenuItem>
+                      <MenuItem value="30">30 minutes before</MenuItem>
+                      <MenuItem value="60">1 hour before</MenuItem>
+                      <MenuItem value="1440">1 day before</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                    <InputLabel>Priority</InputLabel>
+                    <Select value={priority} onChange={e => setPriority(e.target.value as "low" | "medium" | "high")} label="Priority">
+                      <MenuItem value="low">Low</MenuItem>
+                      <MenuItem value="medium">Medium</MenuItem>
+                      <MenuItem value="high">High</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Stack>
 
-              {/* Row 3: Repeat (narrower) + Category (wider) */}
-              <Stack direction="row" spacing={2}>
-                <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
-                  <InputLabel>Repeat</InputLabel>
-                  <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} label="Repeat">
-                    <MenuItem value="">No Repeat</MenuItem>
-                    <MenuItem value="daily">Daily</MenuItem>
-                    <MenuItem value="weekly">Weekly</MenuItem>
-                    <MenuItem value="monthly">Monthly</MenuItem>
-                  </Select>
-                </FormControl>
-                <FormControl size="small" sx={{ flex: 2 }} disabled={isSubmitting}>
-                  <InputLabel>Category</InputLabel>
-                  <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} label="Category">
-                    <MenuItem value="">No Category</MenuItem>
-                    {categories.map(cat => (
-                      <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                {/* Row 3: Repeat (narrower) + Category (wider) */}
+                <Stack direction="row" spacing={2}>
+                  <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                    <InputLabel>Repeat</InputLabel>
+                    <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} label="Repeat">
+                      <MenuItem value="">No Repeat</MenuItem>
+                      <MenuItem value="daily">Daily</MenuItem>
+                      <MenuItem value="weekly">Weekly</MenuItem>
+                      <MenuItem value="monthly">Monthly</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ flex: 2 }} disabled={isSubmitting}>
+                    <InputLabel>Category</InputLabel>
+                    <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} label="Category">
+                      <MenuItem value="">No Category</MenuItem>
+                      {categories.map(cat => (
+                        <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Stack>
               </Stack>
-            </Stack>
-          )}
-        </Box>
-      </Collapse>
-    </Paper>
+            )}
+          </Box>
+        </Collapse>
+      </Paper>
+    </Box>
   )
 }

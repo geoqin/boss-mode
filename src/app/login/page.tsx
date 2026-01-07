@@ -6,8 +6,8 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen bg-gradient-hero flex flex-col items-center justify-center px-6 py-12">
             {/* Decorative orbs */}
-            <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
-            <div className="absolute bottom-20 right-20 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute top-20 left-20 w-72 h-72 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-20 right-20 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none" />
 
             <div className="relative z-10 text-center animate-fade-in">
                 {/* Logo */}

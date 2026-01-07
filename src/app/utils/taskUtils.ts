@@ -43,7 +43,7 @@ export function getRecurringInstances(
     taskStart.setHours(0, 0, 0, 0)
 
     // Generate instances based on recurrence pattern
-    let currentDate = new Date(taskStart)
+    const currentDate = new Date(taskStart)
 
     // If task start is before our range, advance to first instance in range
     while (currentDate < start) {

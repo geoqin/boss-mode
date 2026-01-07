@@ -171,8 +171,8 @@ export default function AccountPage() {
             {/* Decorative orbs */}
             {isDark && (
                 <>
-                    <div className="fixed top-10 left-10 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-                    <div className="fixed bottom-10 right-10 w-80 h-80 bg-pink-500/10 rounded-full blur-3xl pointer-events-none" />
+                    <div className="fixed top-10 left-10 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+                    <div className="fixed bottom-10 right-10 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
                 </>
             )}
 
@@ -276,8 +276,8 @@ export default function AccountPage() {
                                 <button
                                     onClick={() => setSkipConfirmation(!skipConfirmation)}
                                     className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${!skipConfirmation
-                                            ? 'bg-purple-500'
-                                            : isDark ? 'bg-white/20' : 'bg-gray-300'
+                                        ? 'bg-purple-500'
+                                        : isDark ? 'bg-white/20' : 'bg-gray-300'
                                         }`}
                                 >
                                     <span

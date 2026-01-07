@@ -253,7 +253,7 @@ export function WeekView({
                                                         disabled={!canToggle}
                                                         className={`w-6 h-6 rounded border-2 transition-all
                                                             ${isCompleted
-                                                                ? (isDark ? 'bg-green-500 border-green-500' : 'bg-green-500 border-green-500')
+                                                                ? (isDark ? 'bg-gradient-to-br from-orange-500 to-yellow-400 border-transparent' : 'bg-green-500 border-green-500')
                                                                 : (isDark ? 'border-white/30 hover:border-white/50' : 'border-gray-300 hover:border-gray-400')}
                                                             ${!canToggle ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                                                         title={isCompleted ? 'Completed' : canToggle ? 'Mark complete' : 'Cannot modify past'}
@@ -310,8 +310,7 @@ export function WeekView({
                                                 type="checkbox"
                                                 checked={task.completed}
                                                 onChange={() => { }}
-                                                className="checkbox-custom pointer-events-none"
-                                                style={!isDark ? { borderColor: '#d1d5db' } : {}}
+                                                className={`checkbox-custom pointer-events-none ${isDark ? 'checkbox-dark' : 'checkbox-light'}`}
                                                 disabled={false}
                                             />
                                         </div>

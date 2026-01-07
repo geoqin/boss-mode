@@ -24,8 +24,12 @@ export function ProgressBar({ completedCount, totalCount, isDark }: ProgressBarP
             </div>
             <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-white/10' : 'bg-gray-200'}`}>
                 <div
-                    className="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-500 ease-out"
-                    style={{ width: `${percentage}%` }}
+                    className="h-full transition-all duration-500 ease-out relative"
+                    style={{
+                        width: `${percentage}%`,
+                        background: 'linear-gradient(90deg, #ea580c 0%, #facc15 50%, #22c55e 100%)',
+                        backgroundSize: percentage > 0 ? `${(100 / percentage) * 100}% 100%` : '100% 100%'
+                    }}
                 />
             </div>
         </div>

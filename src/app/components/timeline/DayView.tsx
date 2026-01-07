@@ -2,6 +2,7 @@
 
 import { Task, RecurringTaskCompletion } from "@/app/types"
 import { useMemo, Fragment } from "react"
+import { useDeleteConfirm } from "@/app/components/DeleteConfirmProvider"
 import { isInstanceCompleted, getRecurringInstances } from "@/app/utils/taskUtils"
 import { formatLocalDate } from "@/app/utils/dateUtils"
 
@@ -47,6 +48,7 @@ export function DayView({
     onHideRecurringChange,
     isDark
 }: DayViewProps) {
+    const { confirmDelete } = useDeleteConfirm()
     const dateStr = formatLocalDate(selectedDate)
     const today = formatLocalDate(new Date())
     const isToday = dateStr === today
@@ -272,8 +274,7 @@ export function DayView({
                         type="checkbox"
                         checked={isCompleted}
                         onChange={() => { }}
-                        className="checkbox-custom pointer-events-none"
-                        style={!isDark ? { borderColor: '#d1d5db' } : {}}
+                        className={`checkbox-custom pointer-events-none ${isDark ? 'checkbox-dark' : 'checkbox-light'}`}
                     />
                 </div>
 
@@ -313,7 +314,7 @@ export function DayView({
                     <button
                         onClick={(e) => {
                             e.stopPropagation()
-                            onDelete(task.id)
+                            confirmDelete(task.title, () => onDelete(task.id))
                         }}
                         className="btn-delete flex-shrink-0"
                         style={!isDark ? { color: '#9ca3af' } : {}}
