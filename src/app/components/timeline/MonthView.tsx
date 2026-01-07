@@ -105,6 +105,11 @@ export function MonthView({
                 }
             })
 
+            // Future days should appear as "no tasks" (grey) to avoid red warnings
+            // We use -1 percent to trigger the grey color
+            // Logic: If date is in future (> today), percent is -1.
+            const isFuture = dateStr > today
+
             days.push({
                 date,
                 dateStr,
@@ -113,7 +118,7 @@ export function MonthView({
                 isToday: dateStr === today,
                 totalTasks,
                 completedTasks,
-                completionPercent: totalTasks > 0 ? (completedTasks / totalTasks) * 100 : -1
+                completionPercent: (isFuture || totalTasks === 0) ? -1 : (completedTasks / totalTasks) * 100
             })
         }
 
@@ -123,20 +128,23 @@ export function MonthView({
     const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
     const getCompletionColor = (percent: number): string => {
-        if (percent < 0) return isDark ? 'bg-white/5' : 'bg-gray-50' // No tasks
-        if (percent === 100) return isDark ? 'bg-green-500/30' : 'bg-green-100'
-        if (percent >= 75) return isDark ? 'bg-green-500/20' : 'bg-green-50'
-        if (percent >= 50) return isDark ? 'bg-yellow-500/20' : 'bg-yellow-50'
-        if (percent >= 25) return isDark ? 'bg-orange-500/20' : 'bg-orange-50'
-        if (percent > 0) return isDark ? 'bg-red-500/20' : 'bg-red-50'
-        return isDark ? 'bg-red-500/30' : 'bg-red-100' // 0% with tasks
+        if (percent < 0) return isDark ? 'bg-white/5' : 'bg-gray-50' // No tasks or Future
+        if (percent === 100) return isDark ? 'bg-green-600/60' : 'bg-green-200'
+        if (percent >= 75) return isDark ? 'bg-lime-600/60' : 'bg-lime-200'
+        if (percent >= 50) return isDark ? 'bg-yellow-400/60' : 'bg-yellow-200'
+        if (percent >= 25) return isDark ? 'bg-orange-400/60' : 'bg-orange-200'
+        if (percent > 0) return isDark ? 'bg-orange-700/60' : 'bg-orange-300' // Warm orange < 25%
+        return isDark ? 'bg-red-600/60' : 'bg-red-200' // 0% strictly
     }
 
     const getCompletionBorder = (percent: number): string => {
         if (percent < 0) return ''
-        if (percent === 100) return isDark ? 'border-green-500/50' : 'border-green-300'
-        if (percent >= 50) return isDark ? 'border-yellow-500/50' : 'border-yellow-300'
-        return isDark ? 'border-red-500/50' : 'border-red-300'
+        if (percent === 100) return isDark ? 'border-green-500/50' : 'border-green-400'
+        if (percent >= 75) return isDark ? 'border-lime-500/50' : 'border-lime-400'
+        if (percent >= 50) return isDark ? 'border-yellow-400/50' : 'border-yellow-400'
+        if (percent >= 25) return isDark ? 'border-orange-400/50' : 'border-orange-300'
+        if (percent > 0) return isDark ? 'border-orange-600/50' : 'border-orange-400'
+        return isDark ? 'border-red-500/50' : 'border-red-400'
     }
 
     return (
@@ -188,22 +196,31 @@ export function MonthView({
             </div>
 
             {/* Legend */}
-            <div className={`flex items-center justify-center gap-4 mt-4 text-xs ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                <div className="flex items-center gap-1">
-                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-green-500/30' : 'bg-green-100'}`} />
+            {/* Legend */}
+            <div className={`flex flex-wrap items-center justify-center gap-3 mt-4 text-[10px] sm:text-xs ${isDark ? 'text-white/60' : 'text-gray-600'}`}>
+                <div className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-green-600/60' : 'bg-green-200'}`} />
                     <span>100%</span>
                 </div>
-                <div className="flex items-center gap-1">
-                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-yellow-500/20' : 'bg-yellow-50'}`} />
-                    <span>50-99%</span>
+                <div className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-lime-600/60' : 'bg-lime-200'}`} />
+                    <span>75-99%</span>
                 </div>
-                <div className="flex items-center gap-1">
-                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-red-500/30' : 'bg-red-100'}`} />
+                <div className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-yellow-400/60' : 'bg-yellow-200'}`} />
+                    <span>50-74%</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-orange-400/60' : 'bg-orange-200'}`} />
+                    <span>25-49%</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-orange-700/60' : 'bg-orange-300'}`} />
+                    <span>&lt;25%</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-red-600/60' : 'bg-red-200'}`} />
                     <span>0%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                    <div className={`w-3 h-3 rounded ${isDark ? 'bg-white/5' : 'bg-gray-50'}`} />
-                    <span>No tasks</span>
                 </div>
             </div>
         </div>
