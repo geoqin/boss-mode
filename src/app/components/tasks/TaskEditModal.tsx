@@ -493,7 +493,7 @@ export function TaskEditModal({
                 justifyContent: 'space-between',
                 flexDirection: { xs: 'column-reverse', sm: 'row' },
                 gap: { xs: 1.5, sm: 0 },
-                alignItems: 'stretch'
+                alignItems: { xs: 'center', sm: 'stretch' }
             }}>
                 <Button
                     onClick={() => {
@@ -512,7 +512,8 @@ export function TaskEditModal({
                     display: 'flex',
                     gap: 1,
                     width: { xs: '100%', sm: 'auto' },
-                    flexDirection: { xs: 'column-reverse', sm: 'row' }
+                    flexDirection: { xs: 'column-reverse', sm: 'row' },
+                    alignItems: { xs: 'center', sm: 'stretch' }
                 }}>
                     <Button
                         onClick={onClose}
