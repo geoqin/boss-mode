@@ -64,25 +64,80 @@ export function DashboardHeader({
     const totalCount = relevantTasks.length
     const incompleteCount = totalCount - completedCount
 
-    // Boss Message Logic
+    // Boss Message Logic - Multiple messages per state for variety
+    const messages = {
+        noTasks: [
+            "No tasks? Add some work.",
+            "Where's your to-do list?",
+            "Idle hands, idle mind.",
+            "Got nothing? Let's change that.",
+            "The grind won't start itself."
+        ],
+        allDone: [
+            "Clean slate. Outstanding.",
+            "Nothing left? Impressive.",
+            "All done. Now rest... or add more.",
+            "Mission accomplished. Well done.",
+            "You actually finished everything. Respect."
+        ],
+        oneLeft: [
+            "Just one left. Finish it.",
+            "One task remains. Don't slack now.",
+            "Almost there. One more.",
+            "Finish strong. One to go.",
+            "So close. Just do the last one."
+        ],
+        fewLeft: [
+            "Stay focused.",
+            "Keep the momentum going.",
+            "You're on track. Keep pushing.",
+            "Good pace. Don't slow down.",
+            "A few left. You've got this."
+        ],
+        manyLeft: [
+            "Stop procrastinating.",
+            "Those tasks won't complete themselves.",
+            "Less scrolling, more doing.",
+            "Time to lock in.",
+            "Get to work. Now."
+        ],
+        lateNight: [
+            "It's late. Why isn't this done?",
+            "Burning the midnight oil?",
+            "Still at it? Finish up.",
+            "You should be done by now.",
+            "The clock is ticking. Wrap it up."
+        ],
+        superLate: [
+            "Grinding late? Respect.",
+            "Night owl mode. I see you.",
+            "Dedication at this hour? Noted.",
+            "The hustle never sleeps.",
+            "Working while others dream. Legend."
+        ]
+    }
+
+    // Use incomplete count + completed count to get different messages as tasks change
+    const pickMessage = (arr: string[]) => arr[(incompleteCount + completedCount) % arr.length]
+
     let message = "Good work."
     if (totalCount === 0) {
-        message = "No tasks? Add some work."
+        message = pickMessage(messages.noTasks)
     } else if (incompleteCount === 0) {
-        message = "Clean slate. Outstanding."
+        message = pickMessage(messages.allDone)
     } else if (incompleteCount === 1) {
-        message = "Just one left. Finish it."
+        message = pickMessage(messages.oneLeft)
     } else if (incompleteCount <= 3) {
-        message = "Stay focused."
+        message = pickMessage(messages.fewLeft)
     } else {
-        message = "Stop procrastinating."
+        message = pickMessage(messages.manyLeft)
     }
 
     if (currentHour !== null) {
         if (incompleteCount > 0 && currentHour >= 22) {
-            message = "It's late. Why isn't this done?"
+            message = pickMessage(messages.lateNight)
         } else if (incompleteCount > 0 && currentHour >= 0 && currentHour < 5) {
-            message = "Grinding late? Respect."
+            message = pickMessage(messages.superLate)
         }
     }
 
