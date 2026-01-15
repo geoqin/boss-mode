@@ -220,9 +220,13 @@ export function TaskEditModal({
                 <Tabs
                     value={tabValue}
                     onChange={(_, v) => setTabValue(v)}
+                    variant="scrollable"
+                    scrollButtons="auto"
+                    allowScrollButtonsMobile
                     sx={{
                         '& .MuiTabs-indicator': { backgroundColor: '#f97316 !important' },
-                        '& .Mui-selected': { color: '#f97316 !important' }
+                        '& .Mui-selected': { color: '#f97316 !important' },
+                        '& .MuiTabs-scrollButtons': { color: 'text.primary' }
                     }}
                 >
                     <Tab label="Details" />
@@ -489,13 +493,13 @@ export function TaskEditModal({
             <DialogActions sx={{
                 px: 3,
                 pb: 2,
-                display: 'flex',
-                justifyContent: { xs: 'center', sm: 'space-between' },
+                display: { xs: 'flex', sm: 'flex' },
+                justifyContent: { xs: 'stretch', sm: 'space-between' },
                 flexDirection: { xs: 'column-reverse', sm: 'row' },
-                gap: { xs: 1.5, sm: 0 },
+                gap: { xs: 1, sm: 1 },
                 alignItems: 'stretch',
-                '& > :not(:first-of-type)': {
-                    marginLeft: { xs: 0, sm: 'auto' }
+                '& > *': {
+                    marginLeft: '0 !important'
                 }
             }}>
                 <Button
@@ -511,33 +515,29 @@ export function TaskEditModal({
                 >
                     Delete
                 </Button>
-                <Box sx={{
-                    display: 'flex',
-                    gap: 1,
-                    width: { xs: '100%', sm: 'auto' },
-                    flexDirection: { xs: 'column-reverse', sm: 'row' }
-                }}>
-                    <Button
-                        onClick={onClose}
-                        color="inherit"
-                        sx={{ width: { xs: '100%', sm: 'auto' } }}
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSave}
-                        disabled={saving || !title.trim()}
-                        variant="contained"
-                        sx={{
-                            width: { xs: '100%', sm: 'auto' },
-                            background: '#f97316 !important',
-                            '&:hover': { background: '#ea580c !important' },
-                            '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
-                        }}
-                    >
-                        {saving ? <CircularProgress size={20} /> : 'Save'}
-                    </Button>
-                </Box>
+                <Button
+                    onClick={onClose}
+                    color="inherit"
+                    sx={{
+                        width: { xs: '100%', sm: 'auto' },
+                        order: { xs: 0, sm: 0 }
+                    }}
+                >
+                    Cancel
+                </Button>
+                <Button
+                    onClick={handleSave}
+                    disabled={saving || !title.trim()}
+                    variant="contained"
+                    sx={{
+                        width: { xs: '100%', sm: 'auto' },
+                        background: '#f97316 !important',
+                        '&:hover': { background: '#ea580c !important' },
+                        '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
+                    }}
+                >
+                    {saving ? <CircularProgress size={20} /> : 'Save'}
+                </Button>
             </DialogActions>
         </Dialog>
     )
