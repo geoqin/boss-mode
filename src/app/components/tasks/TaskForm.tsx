@@ -159,7 +159,8 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           content: '""',
           position: 'absolute',
           bottom: 0,
-          right: 106, // Aligned with text
+          left: '80%', // Percentage-based for responsive positioning
+          transform: 'translateX(-50%)', // Center the mask
           width: '80px', // Cover full text width
           height: '2px', // Border thickness (same for both themes now)
           background: theme === 'dark' ? '#242424' : '#fff', // Form interior color
@@ -383,8 +384,8 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
         sx={{
           position: 'absolute',
           bottom: 0,
-          right: 100, // Aligns right edge of label with left edge of Add button
-          transform: 'translateY(50%)', // Center vertically on the border
+          left: '80%', // Percentage-based for responsive positioning
+          transform: 'translateX(-50%) translateY(50%)', // Center horizontally & vertically on the border
           px: 1,
           py: 0.25,
           cursor: 'pointer',
