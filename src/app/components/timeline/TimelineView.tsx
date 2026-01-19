@@ -84,8 +84,8 @@ export function TimelineView({
     }, [selectedDate, viewMode, onDateChange])
 
     // Attach swipe handlers
-    // Use higher threshold for week view to prevent accidental swipes when scrolling the table
-    const swipeThreshold = viewMode === 'week' ? 120 : 50
+    // Use much higher threshold for week view to prevent accidental swipes when scrolling the table
+    const swipeThreshold = viewMode === 'week' ? 180 : 50
     const swipeRef = useSwipeGesture<HTMLDivElement>({
         onSwipeLeft: navigateNext,
         onSwipeRight: navigatePrev

@@ -35,9 +35,10 @@ export function useSwipeGesture<T extends HTMLElement>(
         const deltaX = touchEndX - touchStartX.current
         const deltaY = touchEndY - touchStartY.current
 
-        // Only trigger if horizontal swipe is greater than vertical
-        // This prevents accidental swipes while scrolling
-        if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > threshold) {
+        // Only trigger if horizontal swipe is significantly greater than vertical
+        // Require 1.5:1 horizontal-to-vertical ratio to prevent accidental swipes while scrolling
+        const horizontalRatio = Math.abs(deltaX) / (Math.abs(deltaY) + 1) // +1 to avoid division by zero
+        if (horizontalRatio > 1.5 && Math.abs(deltaX) > threshold) {
             if (deltaX > 0 && handlers.onSwipeRight) {
                 handlers.onSwipeRight()
             } else if (deltaX < 0 && handlers.onSwipeLeft) {

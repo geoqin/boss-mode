@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useBossReminders } from "@/hooks/useBossReminders"
 import { isInstanceCompleted, getTasksForDate, getMissedTasks, getRecurringInstances } from "@/app/utils/taskUtils"
-import { getLocalTodayDate } from "@/app/utils/dateUtils"
+import { getLocalTodayDate, formatLocalDateTime } from "@/app/utils/dateUtils"
 import { ReminderManager } from "../components/ReminderManager"
 
 export default function DashboardPage() {
@@ -328,6 +328,7 @@ export default function DashboardPage() {
     } else {
       // ONE-OFF TASK: Toggle completed status on task itself
       const newCompleted = !task.completed
+      const completedTimestamp = newCompleted ? formatLocalDateTime(new Date()) : null
 
       // Optimistic update
       setTasks(prev =>
@@ -336,7 +337,7 @@ export default function DashboardPage() {
             ? {
               ...t,
               completed: newCompleted,
-              completed_at: newCompleted ? new Date().toISOString() : null
+              completed_at: completedTimestamp
             }
             : t
         )
@@ -347,7 +348,7 @@ export default function DashboardPage() {
         .from('tasks')
         .update({
           completed: newCompleted,
-          completed_at: newCompleted ? new Date().toISOString() : null
+          completed_at: completedTimestamp
         })
         .eq('id', id)
 

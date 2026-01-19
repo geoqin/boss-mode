@@ -43,7 +43,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
   const [recurrence, setRecurrence] = useState<"daily" | "weekly" | "monthly" | "">("")
   const [categoryId, setCategoryId] = useState("")
   const [reminder, setReminder] = useState<string>("")
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
 
@@ -55,7 +55,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (formRef.current && !formRef.current.contains(event.target as Node) && !isSubmitting) {
-        setIsExpanded(false)
+        setShowAdvanced(false)
       }
     }
     document.addEventListener("mousedown", handleClickOutside)
@@ -121,7 +121,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
       setRecurrence("")
       setCategoryId("")
       setReminder("")
-      setIsExpanded(false)
+      setShowAdvanced(false)
     } finally {
       setIsSubmitting(false)
     }
@@ -144,11 +144,27 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
       ref={formRef}
       onSubmit={submit}
       sx={{
-        p: theme === 'dark' ? '2px' : 0,
-        borderRadius: '16px', // Matches Outer Radius
-        background: theme === 'dark' ? 'linear-gradient(135deg, #f97316, #facc15)' : 'none',
+        p: '2px', // Same padding for both themes for consistent sizing
+        borderRadius: '16px',
+        // Dark mode: gradient border, Light mode: simple border
+        background: theme === 'dark'
+          ? 'linear-gradient(135deg, #f97316, #facc15)'
+          : 'transparent',
+        border: theme === 'dark' ? 'none' : '2px solid',
+        borderColor: theme === 'dark' ? 'transparent' : 'divider',
         position: 'relative',
         transition: 'all 0.3s ease',
+        // Mask pseudo-element to create gap in border where "Advanced" text sits
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          bottom: 0,
+          right: 106, // Aligned with text
+          width: '80px', // Cover full text width
+          height: '2px', // Border thickness (same for both themes now)
+          background: theme === 'dark' ? '#242424' : '#fff', // Form interior color
+          zIndex: 1,
+        },
       }}
     >
       <Paper
@@ -159,9 +175,8 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           background: theme === 'dark'
             ? 'linear-gradient(rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05)), #1f1f1f'
             : 'background.paper',
-          border: theme === 'dark' ? 'none' : 1,
-          borderColor: 'divider',
-          borderRadius: theme === 'dark' ? '14px' : 3, // 16px - 2px padding = 14px
+          border: 'none', // No border on Paper - it's on the outer Box
+          borderRadius: '14px', // 16px - 2px padding = 14px (same for both themes)
           height: '100%',
         }}
       >
@@ -169,7 +184,6 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           <TextField
             value={title}
             onChange={e => setTitle(e.target.value)}
-            onFocus={() => setIsExpanded(true)}
             placeholder="What needs to be done?"
             disabled={isSubmitting}
             fullWidth
@@ -217,8 +231,8 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           </Button>
         </Stack>
 
-        <Collapse in={isExpanded}>
-          <Box sx={{ mt: 2, px: 1 }}>
+        <Collapse in={showAdvanced}>
+          <Box sx={{ mt: 2, px: 1, pb: 1.5 }}>
             {isMobile ? (
               // Mobile: Stacked rows
               <Stack spacing={1.5}>
@@ -362,6 +376,50 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           </Box>
         </Collapse>
       </Paper>
+
+      {/* Advanced toggle - positioned on the bottom border, works for both themes */}
+      <Box
+        onClick={() => setShowAdvanced(!showAdvanced)}
+        sx={{
+          position: 'absolute',
+          bottom: 0,
+          right: 100, // Aligns right edge of label with left edge of Add button
+          transform: 'translateY(50%)', // Center vertically on the border
+          px: 1,
+          py: 0.25,
+          cursor: 'pointer',
+          // Background matches page/form to hide border passing through
+          background: theme === 'dark' ? '#18181b' : '#fff',
+          // Text styling - gradient for dark, solid for light
+          ...(theme === 'dark' ? {
+            backgroundImage: 'linear-gradient(90deg, #fb923c 0%, #fbbf24 100%)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          } : {
+            color: '#f97316',
+          }),
+          fontSize: '0.65rem',
+          fontWeight: 600,
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+          transition: 'all 0.2s',
+          zIndex: 1,
+          '&:hover': theme === 'dark' ? {
+            backgroundImage: 'none',
+            WebkitTextFillColor: '#f97316', // Solid orange on hover
+          } : {
+            color: '#ea580c',
+          }
+        }}
+      >
+        Advanced {showAdvanced ? '▲' : '▼'}
+      </Box>
+
+
     </Box>
   )
 }
