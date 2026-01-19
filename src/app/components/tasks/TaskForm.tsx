@@ -409,6 +409,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           gap: 0.5,
           transition: 'all 0.2s',
           zIndex: 1,
+          whiteSpace: 'nowrap', // Prevent arrow from wrapping
           '&:hover': theme === 'dark' ? {
             backgroundImage: 'none',
             WebkitTextFillColor: '#f97316', // Solid orange on hover
