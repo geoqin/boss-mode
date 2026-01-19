@@ -159,7 +159,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
           content: '""',
           position: 'absolute',
           bottom: 0,
-          left: '80%', // Percentage-based for responsive positioning
+          left: '70%', // Percentage-based for responsive positioning
           transform: 'translateX(-50%)', // Center the mask
           width: '80px', // Cover full text width
           height: '2px', // Border thickness (same for both themes now)
@@ -384,7 +384,7 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
         sx={{
           position: 'absolute',
           bottom: 0,
-          left: '80%', // Percentage-based for responsive positioning
+          left: '70%', // Percentage-based for responsive positioning
           transform: 'translateX(-50%) translateY(50%)', // Center horizontally & vertically on the border
           px: 1,
           py: 0.25,
