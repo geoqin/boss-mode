@@ -116,11 +116,8 @@ export function TaskEditModal({
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
     const [editingCommentContent, setEditingCommentContent] = useState('')
 
-    const displayedComments = comments.filter(c => {
-        if (!task.recurrence) return true
-        if (instanceDate) return c.instance_date === instanceDate
-        return !c.instance_date
-    })
+    // Show all comments for the task (including all recurrence instances)
+    const displayedComments = comments
 
     const handleSave = async () => {
         setSaving(true)
