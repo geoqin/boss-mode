@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react"
-import { NewTask, Category } from "@/app/types"
+import { NewTask, Tag } from "@/app/types"
 import { getLocalTodayDate, formatLocalDateTime } from "@/app/utils/dateUtils"
 import { useMounted } from "@/hooks/useMounted"
 import {
@@ -15,8 +15,10 @@ import {
   Paper,
   CircularProgress,
   Tooltip,
+  Typography,
   useMediaQuery,
   useTheme,
+  Chip,
 } from "@mui/material"
 import {
   CalendarMonth,
@@ -30,18 +32,19 @@ import { DatePicker, TimePicker } from "@mui/x-date-pickers"
 import { format, isAfter, addDays, startOfDay } from "date-fns"
 
 interface TaskFormProps {
-  onAdd: (task: NewTask) => Promise<void> | void
-  categories: Category[]
+  onAdd: (task: NewTask, tagIds?: string[]) => Promise<void> | void
+  tags: Tag[]
   theme?: 'light' | 'dark'
 }
 
-export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
+export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
   const [title, setTitle] = useState("")
   const [dueDate, setDueDate] = useState<Date | null>(null)
   const [dueTime, setDueTime] = useState<Date | null>(null)
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium")
-  const [recurrence, setRecurrence] = useState<"daily" | "weekly" | "monthly" | "">("")
-  const [categoryId, setCategoryId] = useState("")
+  const [recurrence, setRecurrence] = useState<'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annually' | 'custom' | ''>("")
+  const [customIntervalDays, setCustomIntervalDays] = useState<number | ''>("")
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [reminder, setReminder] = useState<string>("")
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -110,16 +113,17 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
         due_date: isoDate,
         priority,
         recurrence: recurrence || null,
-        category_id: categoryId || null,
+        recurrence_interval_days: recurrence === 'custom' && customIntervalDays ? customIntervalDays : null,
         reminder_minutes_before: reminder ? parseInt(reminder) : null
-      })
+      }, selectedTagIds.length > 0 ? selectedTagIds : undefined)
 
       setTitle("")
       setDueDate(null)
       setDueTime(null)
       setPriority("medium")
       setRecurrence("")
-      setCategoryId("")
+      setCustomIntervalDays("")
+      setSelectedTagIds([])
       setReminder("")
       setShowAdvanced(false)
     } finally {
@@ -286,27 +290,77 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                   </FormControl>
                 </Stack>
 
-                {/* Row 4: Category + Repeat */}
+                {/* Row 4: Tags + Repeat */}
                 <Stack direction="row" spacing={1} alignItems="center">
-                  <FieldIcon icon={<Label fontSize="small" />} label="Category" />
-                  <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
-                    <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} displayEmpty>
-                      <MenuItem value="">—</MenuItem>
-                      {categories.map(cat => (
-                        <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <FieldIcon icon={<Label fontSize="small" />} label="Tags" />
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center', flex: 1 }}>
+                    {selectedTagIds.map(tagId => {
+                      const tag = tags.find(t => t.id === tagId)
+                      return tag ? (
+                        <Chip
+                          key={tag.id}
+                          label={tag.name}
+                          size="small"
+                          onDelete={() => setSelectedTagIds(prev => prev.filter(id => id !== tagId))}
+                          sx={{ backgroundColor: tag.color, color: '#fff', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } }}
+                        />
+                      ) : null
+                    })}
+                    {tags.filter(t => !selectedTagIds.includes(t.id)).length > 0 && (
+                      <FormControl size="small" sx={{ minWidth: 60 }} disabled={isSubmitting}>
+                        <Select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) setSelectedTagIds(prev => [...prev, e.target.value])
+                          }}
+                          displayEmpty
+                          sx={{ '& .MuiSelect-select': { py: 0.5 } }}
+                        >
+                          <MenuItem value="">+</MenuItem>
+                          {tags.filter(t => !selectedTagIds.includes(t.id)).map(tag => (
+                            <MenuItem key={tag.id} value={tag.id}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: tag.color }} />
+                                {tag.name}
+                              </Box>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </Box>
                   <FieldIcon icon={<Repeat fontSize="small" />} label="Repeat" />
                   <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
-                    <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} displayEmpty>
+                    <Select value={recurrence} onChange={e => setRecurrence(e.target.value as typeof recurrence)} displayEmpty>
                       <MenuItem value="">—</MenuItem>
                       <MenuItem value="daily">D</MenuItem>
                       <MenuItem value="weekly">W</MenuItem>
+                      <MenuItem value="fortnightly">2W</MenuItem>
                       <MenuItem value="monthly">M</MenuItem>
+                      <MenuItem value="quarterly">Q</MenuItem>
+                      <MenuItem value="annually">Y</MenuItem>
+                      <MenuItem value="custom">...</MenuItem>
                     </Select>
                   </FormControl>
                 </Stack>
+
+                {/* Custom Interval Row (only shown when custom is selected) */}
+                {recurrence === 'custom' && (
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <FieldIcon icon={<Repeat fontSize="small" />} label="Every X days" />
+                    <TextField
+                      type="number"
+                      size="small"
+                      value={customIntervalDays}
+                      onChange={e => setCustomIntervalDays(e.target.value ? parseInt(e.target.value) : '')}
+                      placeholder="Days"
+                      inputProps={{ min: 1 }}
+                      sx={{ flex: 1 }}
+                      disabled={isSubmitting}
+                    />
+                    <Typography variant="body2" color="text.secondary">days</Typography>
+                  </Stack>
+                )}
               </Stack>
             ) : (
               // Desktop: Organized rows with proper sizing
@@ -355,23 +409,72 @@ export function TaskForm({ onAdd, categories, theme = 'dark' }: TaskFormProps) {
                 <Stack direction="row" spacing={2}>
                   <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
                     <InputLabel>Repeat</InputLabel>
-                    <Select value={recurrence} onChange={e => setRecurrence(e.target.value as "daily" | "weekly" | "monthly" | "")} label="Repeat">
+                    <Select value={recurrence} onChange={e => setRecurrence(e.target.value as typeof recurrence)} label="Repeat">
                       <MenuItem value="">No Repeat</MenuItem>
                       <MenuItem value="daily">Daily</MenuItem>
                       <MenuItem value="weekly">Weekly</MenuItem>
+                      <MenuItem value="fortnightly">Fortnightly</MenuItem>
                       <MenuItem value="monthly">Monthly</MenuItem>
+                      <MenuItem value="quarterly">Quarterly</MenuItem>
+                      <MenuItem value="annually">Annually</MenuItem>
+                      <MenuItem value="custom">Custom...</MenuItem>
                     </Select>
                   </FormControl>
-                  <FormControl size="small" sx={{ flex: 2 }} disabled={isSubmitting}>
-                    <InputLabel>Category</InputLabel>
-                    <Select value={categoryId} onChange={e => setCategoryId(e.target.value)} label="Category">
-                      <MenuItem value="">No Category</MenuItem>
-                      {categories.map(cat => (
-                        <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  {/* Tags Chip Selector */}
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center', flex: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>Tags:</Typography>
+                    {selectedTagIds.map(tagId => {
+                      const tag = tags.find(t => t.id === tagId)
+                      return tag ? (
+                        <Chip
+                          key={tag.id}
+                          label={tag.name}
+                          size="small"
+                          onDelete={() => setSelectedTagIds(prev => prev.filter(id => id !== tagId))}
+                          sx={{ backgroundColor: tag.color, color: '#fff', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } }}
+                        />
+                      ) : null
+                    })}
+                    {tags.filter(t => !selectedTagIds.includes(t.id)).length > 0 && (
+                      <FormControl size="small" sx={{ minWidth: 100 }} disabled={isSubmitting}>
+                        <InputLabel>Add tag</InputLabel>
+                        <Select
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) setSelectedTagIds(prev => [...prev, e.target.value])
+                          }}
+                          label="Add tag"
+                        >
+                          {tags.filter(t => !selectedTagIds.includes(t.id)).map(tag => (
+                            <MenuItem key={tag.id} value={tag.id}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ width: 10, height: 10, borderRadius: '50%', backgroundColor: tag.color }} />
+                                {tag.name}
+                              </Box>
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    )}
+                  </Box>
                 </Stack>
+
+                {/* Custom Interval Row (only shown when custom is selected) */}
+                {recurrence === 'custom' && (
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <TextField
+                      type="number"
+                      size="small"
+                      label="Repeat every"
+                      value={customIntervalDays}
+                      onChange={e => setCustomIntervalDays(e.target.value ? parseInt(e.target.value) : '')}
+                      inputProps={{ min: 1 }}
+                      sx={{ flex: 1 }}
+                      disabled={isSubmitting}
+                    />
+                    <Typography variant="body2" color="text.secondary" sx={{ minWidth: 40 }}>days</Typography>
+                  </Stack>
+                )}
               </Stack>
             )}
           </Box>

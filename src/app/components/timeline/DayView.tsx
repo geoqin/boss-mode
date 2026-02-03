@@ -59,9 +59,29 @@ export function DayView({
         const result: DayTask[] = []
 
         tasks.forEach(task => {
+            // ONGOING TASKS: Always show on today, regardless of completion status
+            if (task.ongoing && isToday && !task.recurrence) {
+                result.push({
+                    task,
+                    isCompleted: task.completed,
+                    isRecurring: false,
+                    instanceDate: dateStr
+                })
+                return // Don't process further conditions for this task
+            }
+
             if (task.recurrence) {
                 const instances = getRecurringInstances(task, selectedDate, selectedDate)
                 if (instances.includes(dateStr)) {
+                    result.push({
+                        task,
+                        isCompleted: isInstanceCompleted(task.id, dateStr, recurringCompletions),
+                        isRecurring: true,
+                        instanceDate: dateStr
+                    })
+                }
+                // Also show ongoing recurring tasks on today even if not due today
+                else if (task.ongoing && isToday) {
                     result.push({
                         task,
                         isCompleted: isInstanceCompleted(task.id, dateStr, recurringCompletions),
@@ -132,15 +152,18 @@ export function DayView({
 
         switch (sortBy) {
             case 'type': {
-                const regular = sortedByPriority.filter(t => !t.isRecurring)
-                const recurring = sortedByPriority.filter(t => t.isRecurring)
+                const ongoing = sortedByPriority.filter(t => t.task.ongoing && !t.isRecurring)
+                const recurring = sortedByPriority.filter(t => t.isRecurring && !t.task.ongoing)
+                const regular = sortedByPriority.filter(t => !t.isRecurring && !t.task.ongoing)
 
                 if (sortOrder === 'asc') {
+                    if (ongoing.length) groups.push({ key: 'ongoing', label: 'Ongoing', emoji: '🔄', tasks: ongoing })
                     if (regular.length) groups.push({ key: 'tasks', label: 'Tasks', emoji: '📝', tasks: regular })
-                    if (recurring.length) groups.push({ key: 'recurring', label: 'Recurring', emoji: '🔄', tasks: recurring })
+                    if (recurring.length) groups.push({ key: 'recurring', label: 'Recurring', emoji: '📅', tasks: recurring })
                 } else {
-                    if (recurring.length) groups.push({ key: 'recurring', label: 'Recurring', emoji: '🔄', tasks: recurring })
+                    if (recurring.length) groups.push({ key: 'recurring', label: 'Recurring', emoji: '📅', tasks: recurring })
                     if (regular.length) groups.push({ key: 'tasks', label: 'Tasks', emoji: '📝', tasks: regular })
+                    if (ongoing.length) groups.push({ key: 'ongoing', label: 'Ongoing', emoji: '🔄', tasks: ongoing })
                 }
                 break
             }
@@ -288,7 +311,14 @@ export function DayView({
                     <div className="flex gap-2 mt-1 flex-wrap">
                         {sortBy !== 'type' && isRecurring && (
                             <span className={`text-xs ${isDark ? 'text-purple-300' : 'text-purple-600'}`}>
-                                🔄 {task.recurrence}
+                                📅 {task.recurrence === 'custom' && task.recurrence_interval_days
+                                    ? `${task.recurrence_interval_days}d`
+                                    : task.recurrence}
+                            </span>
+                        )}
+                        {sortBy !== 'type' && task.ongoing && !isRecurring && (
+                            <span className={`text-xs ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
+                                ∞ Ongoing
                             </span>
                         )}
                         {sortBy !== 'due' && isOverdue && (

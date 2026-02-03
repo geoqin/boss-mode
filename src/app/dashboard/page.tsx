@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Task, NewTask, Category, Subtask, Comment, RecurringTaskCompletion, TaskSortBy, SortOrder } from "@/app/types"
+import { Task, NewTask, Category, Tag, Subtask, Comment, RecurringTaskCompletion, ChildTaskCompletion, TaskSortBy, SortOrder } from "@/app/types"
 import { TaskForm } from "../components/tasks/TaskForm"
 import { TaskEditModal } from "../components/tasks/TaskEditModal"
 import { TimelineView } from "../components/timeline/TimelineView"
@@ -21,9 +21,11 @@ import { ReminderManager } from "../components/ReminderManager"
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
   const [recurringCompletions, setRecurringCompletions] = useState<RecurringTaskCompletion[]>([])
+  const [childTaskCompletions, setChildTaskCompletions] = useState<ChildTaskCompletion[]>([])
   const [loading, setLoading] = useState(true)
-  const [filterCategory, setFilterCategory] = useState<string>('all')
+  const [filterTag, setFilterTag] = useState<string>('all')
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   // Use null initially to avoid hydration mismatch, then set on client
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
@@ -38,9 +40,11 @@ export default function DashboardPage() {
 
   // Modal states
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [editingParentTask, setEditingParentTask] = useState<Task | null>(null) // For containment validation
   const [editingInstanceDate, setEditingInstanceDate] = useState<string | null>(null)
   const [taskSubtasks, setTaskSubtasks] = useState<Subtask[]>([])
   const [taskComments, setTaskComments] = useState<Comment[]>([])
+  const [childTasks, setChildTasks] = useState<Task[]>([])
   const [showCategoryManager, setShowCategoryManager] = useState(false)
 
   // Set client-side date to avoid hydration mismatch
@@ -94,11 +98,12 @@ export default function DashboardPage() {
         return
       }
 
-      // Fetch Tasks
+      // Fetch Tasks (only root tasks - parent_task_id is null)
       const { data: tasksData, error: tasksError } = await supabase
         .from('tasks')
         .select('*')
         .eq('user_id', user.id)
+        .is('parent_task_id', null)
         .order('created_at', { ascending: false })
 
       if (tasksError) {
@@ -117,12 +122,31 @@ export default function DashboardPage() {
         counts[c.task_id] = (counts[c.task_id] || 0) + 1
       })
 
-      const tasksWithCounts = (tasksData || []).map(t => ({
+      // Fetch task_tags with tag data
+      const { data: taskTagsData } = await supabase
+        .from('task_tags')
+        .select(`
+          task_id,
+          tags:tag_id (id, name, color)
+        `)
+
+      // Map task_id -> tags[]
+      const taskTagsMap: Record<string, { id: string; name: string; color: string }[]> = {}
+      taskTagsData?.forEach((tt: { task_id: string; tags: { id: string; name: string; color: string } | { id: string; name: string; color: string }[] | null }) => {
+        const tagsArray = Array.isArray(tt.tags) ? tt.tags : tt.tags ? [tt.tags] : []
+        if (tagsArray.length > 0) {
+          if (!taskTagsMap[tt.task_id]) taskTagsMap[tt.task_id] = []
+          taskTagsMap[tt.task_id].push(...tagsArray)
+        }
+      })
+
+      const tasksWithData = (tasksData || []).map(t => ({
         ...t,
-        comment_count: counts[t.id] || 0
+        comment_count: counts[t.id] || 0,
+        tags: taskTagsMap[t.id] || []
       }))
 
-      setTasks(tasksWithCounts)
+      setTasks(tasksWithData)
 
       // Fetch recurring task completions
       const { data: completionsData } = await supabase
@@ -134,20 +158,38 @@ export default function DashboardPage() {
         setRecurringCompletions(completionsData)
       }
 
+      // Fetch child task completions (for recurring parent tasks)
+      const { data: childCompletionsData } = await supabase
+        .from('child_task_completions')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (childCompletionsData) {
+        setChildTaskCompletions(childCompletionsData)
+      }
+
       // Check for missed recurring tasks from yesterday (for notification)
       const today = getLocalTodayDate()
-      const missedTasks = getMissedTasks(tasksWithCounts, completionsData || [], today)
+      const missedTasks = getMissedTasks(tasksWithData, completionsData || [], today)
       if (missedTasks.length > 0 && notificationsEnabled) {
         // Missed tasks from yesterday are tracked but notification logic is handled elsewhere
       }
 
-      // Fetch Categories
+      // Fetch Categories (legacy - will be deprecated)
       const { data: catData } = await supabase
         .from('categories')
         .select('*')
         .eq('user_id', user.id)
 
       if (catData) setCategories(catData)
+
+      // Fetch Tags (new multi-tag system)
+      const { data: tagData } = await supabase
+        .from('tags')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (tagData) setTags(tagData)
 
       // Fetch Preferences
       const { data: prefData } = await supabase
@@ -176,18 +218,20 @@ export default function DashboardPage() {
     document.body.className = theme === 'dark' ? 'bg-[#0f0c29] text-white' : 'bg-gray-50 text-gray-900'
   }, [theme])
 
-  // Fetch subtasks and comments when editing a task
+  // Fetch subtasks, comments, and child tasks when editing a task
   useEffect(() => {
     async function fetchTaskDetails() {
       if (!editingTask || !user) return
 
-      const [{ data: subtasksData }, { data: commentsData }] = await Promise.all([
+      const [{ data: subtasksData }, { data: commentsData }, { data: childTasksData }] = await Promise.all([
         supabase.from('subtasks').select('*').eq('task_id', editingTask.id).order('created_at'),
-        supabase.from('comments').select('*').eq('task_id', editingTask.id).order('created_at', { ascending: false })
+        supabase.from('comments').select('*').eq('task_id', editingTask.id).order('created_at', { ascending: false }),
+        supabase.from('tasks').select('*').eq('parent_task_id', editingTask.id).order('created_at')
       ])
 
       setTaskSubtasks(subtasksData || [])
       setTaskComments(commentsData || [])
+      setChildTasks(childTasksData || [])
     }
 
     fetchTaskDetails()
@@ -227,7 +271,7 @@ export default function DashboardPage() {
     }
   }
 
-  const addTask = async (newTask: NewTask) => {
+  const addTask = async (newTask: NewTask, tagIds?: string[]) => {
     if (!user) return
     setError(null)
     const { data, error } = await supabase
@@ -235,10 +279,11 @@ export default function DashboardPage() {
       .insert({
         user_id: user.id,
         title: newTask.title,
-        category_id: newTask.category_id || null,
         due_date: newTask.due_date || null,
         priority: newTask.priority || 'medium',
-        recurrence: newTask.recurrence || null
+        recurrence: newTask.recurrence || null,
+        recurrence_interval_days: newTask.recurrence_interval_days || null,
+        reminder_minutes_before: newTask.reminder_minutes_before || null
       })
       .select()
       .single()
@@ -247,7 +292,16 @@ export default function DashboardPage() {
       console.error('Error adding task:', error)
       setError(`Add Error: ${error.message}`)
     } else if (data) {
-      setTasks(prev => [{ ...data, comment_count: 0 }, ...prev])
+      // Associate tags with the new task
+      if (tagIds && tagIds.length > 0) {
+        const tagInserts = tagIds.map(tagId => ({ task_id: data.id, tag_id: tagId }))
+        await supabase.from('task_tags').insert(tagInserts)
+        // Add tags to task object
+        const taskTags = tags.filter(t => tagIds.includes(t.id))
+        setTasks(prev => [{ ...data, comment_count: 0, tags: taskTags }, ...prev])
+      } else {
+        setTasks(prev => [{ ...data, comment_count: 0, tags: [] }, ...prev])
+      }
     }
   }
 
@@ -259,6 +313,8 @@ export default function DashboardPage() {
         due_date: updates.due_date,
         priority: updates.priority,
         recurrence: updates.recurrence,
+        recurrence_interval_days: updates.recurrence_interval_days,
+        ongoing: updates.ongoing,
         category_id: updates.category_id,
         reminder_minutes_before: updates.reminder_minutes_before
       })
@@ -393,6 +449,107 @@ export default function DashboardPage() {
     setTaskSubtasks(prev => prev.filter(s => s.id !== subtaskId))
   }
 
+  // Child task handlers (for task hierarchy)
+  const addChildTask = async (parentTaskId: string, title: string) => {
+    if (!user || !editingTask) return
+    const parentDepth = editingTask.depth || 0
+    if (parentDepth >= 2) return // Max depth exceeded
+
+    const { data, error } = await supabase
+      .from('tasks')
+      .insert({
+        user_id: user.id,
+        title,
+        parent_task_id: parentTaskId,
+        depth: parentDepth + 1
+      })
+      .select()
+      .single()
+
+    if (data) {
+      setChildTasks(prev => [...prev, data])
+    }
+  }
+
+  const toggleChildTask = async (childTaskId: string, parentInstanceDate?: string) => {
+    const childTask = childTasks.find(t => t.id === childTaskId)
+    if (!childTask || !user) return
+
+    // Find parent task to check if it's recurring
+    const parentTask = tasks.find(t => t.id === childTask.parent_task_id)
+
+    if (parentTask?.recurrence) {
+      // RECURRING PARENT: Use instance-based child completions
+      const instanceDate = parentInstanceDate || getLocalTodayDate()
+      const existingCompletion = childTaskCompletions.find(
+        c => c.child_task_id === childTaskId && c.instance_date === instanceDate
+      )
+
+      if (existingCompletion) {
+        // Un-complete: remove from completions table
+        setChildTaskCompletions(prev => prev.filter(c => c.id !== existingCompletion.id))
+        const { error } = await supabase
+          .from('child_task_completions')
+          .delete()
+          .eq('id', existingCompletion.id)
+        if (error) {
+          // Rollback on error
+          setChildTaskCompletions(prev => [...prev, existingCompletion])
+        }
+      } else {
+        // Complete: insert into completions table
+        const optimisticCompletion: ChildTaskCompletion = {
+          id: crypto.randomUUID(),
+          child_task_id: childTaskId,
+          parent_task_id: childTask.parent_task_id!,
+          user_id: user.id,
+          instance_date: instanceDate,
+          completed_at: new Date().toISOString()
+        }
+        setChildTaskCompletions(prev => [...prev, optimisticCompletion])
+
+        const { data, error } = await supabase
+          .from('child_task_completions')
+          .insert({
+            child_task_id: childTaskId,
+            parent_task_id: childTask.parent_task_id,
+            user_id: user.id,
+            instance_date: instanceDate
+          })
+          .select()
+          .single()
+
+        if (error) {
+          // Rollback on error
+          setChildTaskCompletions(prev => prev.filter(c => c.id !== optimisticCompletion.id))
+        } else if (data) {
+          // Update with real ID from server
+          setChildTaskCompletions(prev =>
+            prev.map(c => c.id === optimisticCompletion.id ? data : c)
+          )
+        }
+      }
+    } else {
+      // ONGOING/REGULAR PARENT: Use persistent completed field on child task
+      const newCompleted = !childTask.completed
+      const completedTimestamp = newCompleted ? formatLocalDateTime(new Date()) : null
+
+      await supabase.from('tasks').update({
+        completed: newCompleted,
+        completed_at: completedTimestamp
+      }).eq('id', childTaskId)
+
+      setChildTasks(prev => prev.map(t =>
+        t.id === childTaskId ? { ...t, completed: newCompleted, completed_at: completedTimestamp } : t
+      ))
+    }
+  }
+
+  const deleteChildTask = async (childTaskId: string) => {
+    await supabase.from('tasks').delete().eq('id', childTaskId)
+    setChildTasks(prev => prev.filter(t => t.id !== childTaskId))
+  }
+
   // Comment handlers
   const addComment = async (taskId: string, content: string, instanceDate?: string | null) => {
     if (!user) return
@@ -482,6 +639,80 @@ export default function DashboardPage() {
     }
   }
 
+  // Tag handlers (new multi-tag system)
+  const addTag = async (name: string, color: string = '#8b5cf6') => {
+    if (!user || !name.trim()) return null
+    if (tags.some(t => t.name.toLowerCase() === name.trim().toLowerCase())) return null
+
+    const { data, error } = await supabase
+      .from('tags')
+      .insert({
+        user_id: user.id,
+        name: name.trim(),
+        color
+      })
+      .select()
+      .single()
+
+    if (data) {
+      setTags(prev => [...prev, data])
+      return data
+    }
+    return null
+  }
+
+  const updateTag = async (id: string, name: string, color: string) => {
+    const { error } = await supabase
+      .from('tags')
+      .update({ name, color })
+      .eq('id', id)
+
+    if (!error) {
+      setTags(prev => prev.map(t => t.id === id ? { ...t, name, color } : t))
+    }
+  }
+
+  const deleteTag = async (id: string) => {
+    const { error } = await supabase.from('tags').delete().eq('id', id)
+    if (!error) {
+      setTags(prev => prev.filter(t => t.id !== id))
+    }
+  }
+
+  const addTagToTask = async (taskId: string, tagId: string) => {
+    const { error } = await supabase
+      .from('task_tags')
+      .insert({ task_id: taskId, tag_id: tagId })
+
+    if (!error) {
+      // Update task's tags in local state
+      setTasks(prev => prev.map(t => {
+        if (t.id === taskId) {
+          const tag = tags.find(tg => tg.id === tagId)
+          return { ...t, tags: [...(t.tags || []), tag!] }
+        }
+        return t
+      }))
+    }
+  }
+
+  const removeTagFromTask = async (taskId: string, tagId: string) => {
+    const { error } = await supabase
+      .from('task_tags')
+      .delete()
+      .eq('task_id', taskId)
+      .eq('tag_id', tagId)
+
+    if (!error) {
+      setTasks(prev => prev.map(t => {
+        if (t.id === taskId) {
+          return { ...t, tags: (t.tags || []).filter(tg => tg.id !== tagId) }
+        }
+        return t
+      }))
+    }
+  }
+
   const handleSignOut = async () => {
     await signOut()
     router.push('/')
@@ -500,8 +731,8 @@ export default function DashboardPage() {
 
   // For progress bar: only count tasks that appear in TODAY's view (matching DayView filters)
   const todaysTasks = tasks.filter(task => {
-    // Apply category filter
-    if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
+    // Apply tag filter
+    if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
     // Apply hideRecurring filter
     if (hideRecurring && task.recurrence) return false
 
@@ -554,7 +785,7 @@ export default function DashboardPage() {
 
   const filteredTasks = todaysTasks
     .filter(task => {
-      if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
+      if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
       if (hideRecurring && task.recurrence) return false
       return true
     })
@@ -582,7 +813,7 @@ export default function DashboardPage() {
 
   // Timeline tasks - all tasks for timeline views
   const timelineTasks = tasks.filter(task => {
-    if (filterCategory !== 'all' && task.category_id !== filterCategory) return false
+    if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
     if (hideRecurring && task.recurrence) return false
     return true
   })
@@ -646,14 +877,14 @@ export default function DashboardPage() {
 
           <FilterBar
             isDark={isDark}
-            filterCategory={filterCategory}
+            filterTag={filterTag}
             viewMode={viewMode}
             selectedDate={selectedDate || new Date()}
-            categories={categories}
+            tags={tags}
             hideRecurring={hideRecurring}
             sortBy={sortBy}
             sortOrder={sortOrder}
-            onFilterCategoryChange={setFilterCategory}
+            onFilterTagChange={setFilterTag}
             onViewModeChange={setViewMode}
             onDateChange={setSelectedDate}
             onHideRecurringChange={setHideRecurring}
@@ -661,13 +892,13 @@ export default function DashboardPage() {
               setSortBy(newSortBy)
               setSortOrder(newOrder)
             }}
-            onAddCategory={addCategory}
-            onManageCategories={() => setShowCategoryManager(true)}
+            onAddTag={async (name) => { await addTag(name) }}
+            onManageTags={() => setShowCategoryManager(true)}
           />
 
           {/* Main content card */}
           <div className={cardClass}>
-            <TaskForm onAdd={addTask} categories={categories} theme={theme} />
+            <TaskForm onAdd={addTask} tags={tags} theme={theme} />
 
             <div className="mt-4">
               <TimelineView
@@ -696,16 +927,24 @@ export default function DashboardPage() {
           editingTask && (
             <TaskEditModal
               task={editingTask}
+              parentTask={editingParentTask}
               subtasks={taskSubtasks}
               comments={taskComments}
+              childTasks={childTasks}
               categories={categories}
+              tags={tags}
               isDark={isDark}
               instanceDate={editingInstanceDate}
+              onAddTag={addTag}
+              onAddTagToTask={addTagToTask}
+              onRemoveTagFromTask={removeTagFromTask}
               onClose={() => {
                 setEditingTask(null)
+                setEditingParentTask(null)
                 setEditingInstanceDate(null)
                 setTaskSubtasks([])
                 setTaskComments([])
+                setChildTasks([])
               }}
               onUpdateTask={updateTask}
               onDeleteTask={async (taskId) => {
@@ -716,6 +955,19 @@ export default function DashboardPage() {
               onAddSubtask={addSubtask}
               onToggleSubtask={toggleSubtask}
               onDeleteSubtask={deleteSubtask}
+              onAddChildTask={addChildTask}
+              childTaskCompletions={childTaskCompletions}
+              onToggleChildTask={toggleChildTask}
+              onDeleteChildTask={deleteChildTask}
+              onEditChildTask={(childTask) => {
+                // Switch to editing the child task, keeping current task as parent for containment validation
+                setEditingParentTask(editingTask)
+                setEditingTask(childTask)
+                setEditingInstanceDate(null)
+                setTaskSubtasks([])
+                setTaskComments([])
+                setChildTasks([])
+              }}
               onAddComment={addComment}
               onUpdateComment={updateComment}
               onDeleteComment={deleteComment}

@@ -92,7 +92,7 @@ export function TaskList({ tasks, onToggle, onDelete, onEdit, theme = 'dark' }: 
               onClick={() => onEdit?.(task)}
             >
               <span className={`block transition-all duration-300 ${task.completed && !needsRevert ? "line-through " + textMuted : textPrimary}`}>
-                {task.title}
+                {task.ongoing && <span title="Ongoing task">🔄 </span>}{task.title}
               </span>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {task.priority !== 'medium' && (
@@ -110,7 +110,9 @@ export function TaskList({ tasks, onToggle, onDelete, onEdit, theme = 'dark' }: 
                 )}
                 {task.recurrence && (
                   <span className={`text-[10px] ${isDark ? 'text-purple-300' : 'text-purple-600'} flex items-center gap-1`}>
-                    🔄 {task.recurrence}
+                    🔄 {task.recurrence === 'custom' && task.recurrence_interval_days
+                      ? `${task.recurrence_interval_days}d`
+                      : task.recurrence}
                     {task.completed && nextDue && (
                       <span className={`ml-1 ${isDark ? 'text-green-300' : 'text-green-600'}`}>
                         → Next: {nextDue.toLocaleDateString()}

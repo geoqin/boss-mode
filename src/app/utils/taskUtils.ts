@@ -47,13 +47,13 @@ export function getRecurringInstances(
 
     // If task start is before our range, advance to first instance in range
     while (currentDate < start) {
-        advanceDate(currentDate, task.recurrence)
+        advanceDate(currentDate, task.recurrence, task.recurrence_interval_days ?? undefined)
     }
 
     // Generate instances within the range
     while (currentDate <= end) {
         instances.push(formatLocalDate(currentDate))
-        advanceDate(currentDate, task.recurrence)
+        advanceDate(currentDate, task.recurrence, task.recurrence_interval_days ?? undefined)
     }
 
     return instances
@@ -165,7 +165,7 @@ export function getTasksForDate(
 // DATE ADVANCEMENT HELPER
 // ============================================================================
 
-function advanceDate(date: Date, recurrence: 'daily' | 'weekly' | 'monthly'): void {
+function advanceDate(date: Date, recurrence: 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annually' | 'custom', customIntervalDays?: number): void {
     switch (recurrence) {
         case 'daily':
             date.setDate(date.getDate() + 1)
@@ -173,8 +173,25 @@ function advanceDate(date: Date, recurrence: 'daily' | 'weekly' | 'monthly'): vo
         case 'weekly':
             date.setDate(date.getDate() + 7)
             break
+        case 'fortnightly':
+            date.setDate(date.getDate() + 14)
+            break
         case 'monthly':
             date.setMonth(date.getMonth() + 1)
+            break
+        case 'quarterly':
+            date.setMonth(date.getMonth() + 3)
+            break
+        case 'annually':
+            date.setFullYear(date.getFullYear() + 1)
+            break
+        case 'custom':
+            if (customIntervalDays && customIntervalDays > 0) {
+                date.setDate(date.getDate() + customIntervalDays)
+            } else {
+                // Fallback to daily if custom interval is invalid
+                date.setDate(date.getDate() + 1)
+            }
             break
     }
 }
@@ -228,7 +245,7 @@ export function getNextDueDate(task: Task): Date | null {
 
     const baseDate = task.due_date ? parseLocalYMD(task.due_date) : new Date()
     const nextDate = new Date(baseDate)
-    advanceDate(nextDate, task.recurrence)
+    advanceDate(nextDate, task.recurrence, task.recurrence_interval_days ?? undefined)
 
     return nextDate
 }
@@ -249,8 +266,24 @@ export function getPreviousDueDate(task: Task): Date | null {
         case 'weekly':
             prevDate.setDate(prevDate.getDate() - 7)
             break
+        case 'fortnightly':
+            prevDate.setDate(prevDate.getDate() - 14)
+            break
         case 'monthly':
             prevDate.setMonth(prevDate.getMonth() - 1)
+            break
+        case 'quarterly':
+            prevDate.setMonth(prevDate.getMonth() - 3)
+            break
+        case 'annually':
+            prevDate.setFullYear(prevDate.getFullYear() - 1)
+            break
+        case 'custom':
+            if (task.recurrence_interval_days && task.recurrence_interval_days > 0) {
+                prevDate.setDate(prevDate.getDate() - task.recurrence_interval_days)
+            } else {
+                prevDate.setDate(prevDate.getDate() - 1)
+            }
             break
     }
 
@@ -263,3 +296,4 @@ export function getPreviousDueDate(task: Task): Date | null {
 export function shouldRevertToIncomplete(task: Task): boolean {
     return false // Recurring tasks no longer "revert"
 }
+

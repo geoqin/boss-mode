@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Task, Subtask, Comment, Category } from "@/app/types"
+import { Task, Category, Tag, Subtask, Comment, ChildTaskCompletion } from "@/app/types"
 import {
     Dialog,
     DialogTitle,
@@ -12,6 +12,7 @@ import {
     Select,
     MenuItem,
     FormControl,
+    FormControlLabel,
     InputLabel,
     Tabs,
     Tab,
@@ -24,9 +25,11 @@ import {
     ListItemSecondaryAction,
     IconButton,
     Checkbox,
+    Switch,
     Typography,
     Divider,
     CircularProgress,
+    Chip,
 } from "@mui/material"
 import { DatePicker, TimePicker } from "@mui/x-date-pickers"
 import { parse, format } from "date-fns"
@@ -35,9 +38,12 @@ import { formatLocalDateTime } from "@/app/utils/dateUtils"
 
 interface TaskEditModalProps {
     task: Task
+    parentTask?: Task | null // Parent task for containment validation
     subtasks: Subtask[]
     comments: Comment[]
+    childTasks: Task[]
     categories: Category[]
+    tags: Tag[]
     isDark: boolean
     instanceDate?: string | null
     onClose: () => void
@@ -46,9 +52,17 @@ interface TaskEditModalProps {
     onAddSubtask: (taskId: string, title: string) => Promise<void>
     onToggleSubtask: (subtaskId: string, completed: boolean) => Promise<void>
     onDeleteSubtask: (subtaskId: string) => Promise<void>
+    onAddChildTask: (parentTaskId: string, title: string) => Promise<void>
+    childTaskCompletions: ChildTaskCompletion[]
+    onToggleChildTask: (childTaskId: string, parentInstanceDate?: string) => Promise<void>
+    onDeleteChildTask: (childTaskId: string) => Promise<void>
+    onEditChildTask: (childTask: Task) => void
     onAddComment: (taskId: string, content: string, instanceDate?: string | null) => Promise<void>
     onUpdateComment: (commentId: string, content: string) => Promise<void>
     onDeleteComment: (commentId: string) => Promise<void>
+    onAddTag?: (name: string, color?: string) => Promise<Tag | null>
+    onAddTagToTask?: (taskId: string, tagId: string) => Promise<void>
+    onRemoveTagFromTask?: (taskId: string, tagId: string) => Promise<void>
 }
 
 interface TabPanelProps {
@@ -68,9 +82,12 @@ function TabPanel(props: TabPanelProps) {
 
 export function TaskEditModal({
     task,
+    parentTask,
     subtasks,
     comments,
+    childTasks,
     categories,
+    tags,
     isDark,
     instanceDate,
     onClose,
@@ -79,11 +96,29 @@ export function TaskEditModal({
     onAddSubtask,
     onToggleSubtask,
     onDeleteSubtask,
+    onAddChildTask,
+    childTaskCompletions,
+    onToggleChildTask,
+    onDeleteChildTask,
+    onEditChildTask,
     onAddComment,
     onUpdateComment,
     onDeleteComment,
+    onAddTag,
+    onAddTagToTask,
+    onRemoveTagFromTask,
 }: TaskEditModalProps) {
     const { confirmDelete } = useDeleteConfirm()
+
+    // Containment validation:
+    // - Subtasks can NEVER be ongoing (ongoing is only for top-level persistent lists)
+    // - Regular parent: children cannot be recurring
+    // - Recurring/Ongoing parent: children can be regular or recurring
+    const isSubtask = !!parentTask || !!task.parent_task_id
+    const isChildOfRegular = parentTask && !parentTask.ongoing && !parentTask.recurrence
+    const canBeOngoing = !isSubtask // Subtasks can never be ongoing
+    const canBeRecurring = !isChildOfRegular
+
     const [title, setTitle] = useState(task.title)
 
     // Parse date and time from ISO string
@@ -103,11 +138,14 @@ export function TaskEditModal({
     })
 
     const [priority, setPriority] = useState(task.priority)
-    const [recurrence, setRecurrence] = useState(task.recurrence || '')
-    const [categoryId, setCategoryId] = useState(task.category_id || '')
+    const [recurrence, setRecurrence] = useState<'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annually' | 'custom' | ''>(task.recurrence || '')
+    const [customIntervalDays, setCustomIntervalDays] = useState<number | ''>(task.recurrence_interval_days || '')
+    const [ongoing, setOngoing] = useState(task.ongoing || false)
+    const [taskTags, setTaskTags] = useState<{ id: string; name: string; color: string }[]>(task.tags || [])
     const [reminder, setReminder] = useState<string>(task.reminder_minutes_before?.toString() || '')
 
     const [newSubtask, setNewSubtask] = useState('')
+    const [newChildTask, setNewChildTask] = useState('')
     const [newComment, setNewComment] = useState('')
     const [saving, setSaving] = useState(false)
     const [tabValue, setTabValue] = useState(0)
@@ -115,6 +153,32 @@ export function TaskEditModal({
     // Comment editing state
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null)
     const [editingCommentContent, setEditingCommentContent] = useState('')
+
+    // Reset form state when task changes (e.g., switching to child task)
+    useEffect(() => {
+        setTitle(task.title)
+        setPriority(task.priority)
+        setRecurrence(task.recurrence || '')
+        setCustomIntervalDays(task.recurrence_interval_days || '')
+        setOngoing(task.ongoing || false)
+        setTaskTags(task.tags || [])
+        setReminder(task.reminder_minutes_before?.toString() || '')
+        setTabValue(0)
+
+        // Reset date/time
+        if (task.due_date) {
+            const dateStr = task.due_date.split('T')[0]
+            setDueDate(parse(dateStr, 'yyyy-MM-dd', new Date()))
+            if (task.due_date.includes('T')) {
+                setDueTime(new Date(task.due_date))
+            } else {
+                setDueTime(null)
+            }
+        } else {
+            setDueDate(null)
+            setDueTime(null)
+        }
+    }, [task.id]) // Re-run when task ID changes
 
     // Show all comments for the task (including all recurrence instances)
     const displayedComments = comments
@@ -138,8 +202,9 @@ export function TaskEditModal({
                 title,
                 due_date: isoDate,
                 priority,
-                recurrence: (recurrence || null) as 'daily' | 'weekly' | 'monthly' | null,
-                category_id: categoryId || null,
+                recurrence: (recurrence || null) as typeof task.recurrence,
+                recurrence_interval_days: recurrence === 'custom' && customIntervalDays ? customIntervalDays : null,
+                ongoing,
                 reminder_minutes_before: reminder ? parseInt(reminder) : null
             })
             onClose()
@@ -161,6 +226,12 @@ export function TaskEditModal({
         if (!newSubtask.trim()) return
         await onAddSubtask(task.id, newSubtask.trim())
         setNewSubtask('')
+    }
+
+    const handleAddChildTask = async () => {
+        if (!newChildTask.trim()) return
+        await onAddChildTask(task.id, newChildTask.trim())
+        setNewChildTask('')
     }
 
     const handleAddComment = async () => {
@@ -227,7 +298,7 @@ export function TaskEditModal({
                     }}
                 >
                     <Tab label="Details" />
-                    <Tab label={`Subtasks (${subtasks.length})`} />
+                    <Tab label={`Subtasks (${childTasks.length})`} />
                     <Tab label={`Comments (${displayedComments.length})`} />
                 </Tabs>
             </Box>
@@ -247,13 +318,15 @@ export function TaskEditModal({
                                 label="Due Date"
                                 value={dueDate}
                                 onChange={setDueDate}
-                                slotProps={{ textField: { fullWidth: true } }}
+                                disabled={ongoing}
+                                slotProps={{ textField: { fullWidth: true, disabled: ongoing, helperText: ongoing ? 'Ongoing tasks have no due date' : undefined } }}
                             />
                             <TimePicker
                                 label="Time"
                                 value={dueTime}
                                 onChange={setDueTime}
-                                slotProps={{ textField: { fullWidth: true } }}
+                                disabled={ongoing}
+                                slotProps={{ textField: { fullWidth: true, disabled: ongoing } }}
                             />
                         </Stack>
 
@@ -294,93 +367,233 @@ export function TaskEditModal({
                             </Select>
                         </FormControl>
 
-                        <FormControl fullWidth size="small">
+                        <FormControl fullWidth size="small" disabled={ongoing || !canBeRecurring}>
                             <InputLabel id="recurrence-label">Recurrence</InputLabel>
                             <Select
                                 labelId="recurrence-label"
                                 id="recurrence-select"
-                                value={recurrence}
-                                onChange={e => setRecurrence(e.target.value)}
+                                value={ongoing ? '' : recurrence}
+                                onChange={e => setRecurrence(e.target.value as typeof recurrence)}
                                 label="Recurrence"
                                 size="small"
+                                disabled={ongoing || !canBeRecurring}
                             >
                                 <MenuItem value="">No Repeat</MenuItem>
                                 <MenuItem value="daily">Daily</MenuItem>
                                 <MenuItem value="weekly">Weekly</MenuItem>
+                                <MenuItem value="fortnightly">Fortnightly</MenuItem>
                                 <MenuItem value="monthly">Monthly</MenuItem>
+                                <MenuItem value="quarterly">Quarterly</MenuItem>
+                                <MenuItem value="annually">Annually</MenuItem>
+                                <MenuItem value="custom">Custom...</MenuItem>
                             </Select>
+                            {ongoing && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Ongoing tasks cannot have recurrence
+                                </Typography>
+                            )}
+                            {!canBeRecurring && !ongoing && (
+                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                                    Subtasks of regular tasks cannot be recurring
+                                </Typography>
+                            )}
                         </FormControl>
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Category</InputLabel>
-                            <Select
-                                value={categoryId}
-                                onChange={e => setCategoryId(e.target.value)}
-                                label="Category"
-                                size="small"
-                            >
-                                <MenuItem value="">No Category</MenuItem>
-                                {categories.map(cat => (
-                                    <MenuItem key={cat.id} value={cat.id}>{cat.name}</MenuItem>
+                        {recurrence === 'custom' && (
+                            <Stack direction="row" spacing={2} alignItems="center">
+                                <TextField
+                                    type="number"
+                                    size="small"
+                                    label="Repeat every"
+                                    value={customIntervalDays}
+                                    onChange={e => setCustomIntervalDays(e.target.value ? parseInt(e.target.value) : '')}
+                                    inputProps={{ min: 1 }}
+                                    fullWidth
+                                />
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 40 }}>days</Typography>
+                            </Stack>
+                        )}
+
+                        {/* Tags Chip Selector */}
+                        <Box>
+                            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                                Tags
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                                {taskTags.map(tag => (
+                                    <Chip
+                                        key={tag.id}
+                                        label={tag.name}
+                                        size="small"
+                                        onDelete={onRemoveTagFromTask ? async () => {
+                                            await onRemoveTagFromTask(task.id, tag.id)
+                                            setTaskTags(prev => prev.filter(t => t.id !== tag.id))
+                                        } : undefined}
+                                        sx={{
+                                            backgroundColor: tag.color,
+                                            color: '#fff',
+                                            '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' }
+                                        }}
+                                    />
                                 ))}
-                            </Select>
-                        </FormControl>
+                            </Box>
+                            {tags.filter(t => !taskTags.some(tt => tt.id === t.id)).length > 0 && onAddTagToTask && (
+                                <FormControl size="small" sx={{ minWidth: 150 }}>
+                                    <InputLabel>Add tag</InputLabel>
+                                    <Select
+                                        value=""
+                                        onChange={async (e) => {
+                                            const tagId = e.target.value
+                                            if (tagId) {
+                                                const tagToAdd = tags.find(t => t.id === tagId)
+                                                if (tagToAdd) {
+                                                    await onAddTagToTask(task.id, tagId)
+                                                    setTaskTags(prev => [...prev, tagToAdd])
+                                                }
+                                            }
+                                        }}
+                                        label="Add tag"
+                                        size="small"
+                                    >
+                                        {tags.filter(t => !taskTags.some(tt => tt.id === t.id)).map(tag => (
+                                            <MenuItem key={tag.id} value={tag.id}>
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: tag.color }} />
+                                                    {tag.name}
+                                                </Box>
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            )}
+                        </Box>
+
+                        <FormControlLabel
+                            control={
+                                <Switch
+                                    checked={ongoing}
+                                    onChange={e => {
+                                        const newValue = e.target.checked
+                                        setOngoing(newValue)
+                                        if (newValue) {
+                                            // Clear recurrence and date when enabling ongoing
+                                            setRecurrence('')
+                                            setCustomIntervalDays('')
+                                            setDueDate(null)
+                                            setDueTime(null)
+                                        }
+                                    }}
+                                    disabled={!!recurrence || !canBeOngoing}
+                                    sx={{
+                                        '& .MuiSwitch-switchBase.Mui-checked': {
+                                            color: '#f97316',
+                                        },
+                                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
+                                            backgroundColor: '#f97316',
+                                        },
+                                    }}
+                                />
+                            }
+                            label={
+                                <Box>
+                                    <Typography variant="body2">∞ Ongoing task</Typography>
+                                    <Typography variant="caption" color="text.secondary">
+                                        {!canBeOngoing ? 'Subtasks cannot be ongoing' : recurrence ? 'Remove recurrence first to make ongoing' : 'Ongoing tasks always appear in your daily view'}
+                                    </Typography>
+                                </Box>
+                            }
+                            sx={{ mt: 1, alignItems: 'flex-start' }}
+                        />
                     </Stack>
                 </TabPanel>
 
                 <TabPanel value={tabValue} index={1}>
-                    <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                        <TextField
-                            value={newSubtask}
-                            onChange={e => setNewSubtask(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleAddSubtask()}
-                            placeholder="Add a subtask..."
-                            size="small"
-                            fullWidth
-                        />
-                        <Button
-                            onClick={handleAddSubtask}
-                            disabled={!newSubtask.trim()}
-                            variant="contained"
-                            sx={{
-                                background: '#f97316 !important',
-                                '&:hover': { background: '#ea580c !important' },
-                                '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
-                            }}
-                        >
-                            Add
-                        </Button>
-                    </Stack>
+                    {/* Only allow adding subtasks if not at max depth */}
+                    {(task.depth || 0) < 2 ? (
+                        <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                            <TextField
+                                value={newChildTask}
+                                onChange={e => setNewChildTask(e.target.value)}
+                                onKeyDown={e => e.key === 'Enter' && handleAddChildTask()}
+                                placeholder="Add a subtask..."
+                                size="small"
+                                fullWidth
+                            />
+                            <Button
+                                onClick={handleAddChildTask}
+                                disabled={!newChildTask.trim()}
+                                variant="contained"
+                                sx={{
+                                    background: '#f97316 !important',
+                                    '&:hover': { background: '#ea580c !important' },
+                                    '&.Mui-disabled': { background: 'rgba(255, 255, 255, 0.12) !important' }
+                                }}
+                            >
+                                Add
+                            </Button>
+                        </Stack>
+                    ) : (
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            Maximum nesting depth reached (2 levels)
+                        </Typography>
+                    )}
 
-                    {subtasks.length === 0 ? (
+                    {childTasks.length === 0 ? (
                         <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
                             <Typography variant="h4">📝</Typography>
                             <Typography variant="body2">No subtasks yet</Typography>
+                            <Typography variant="caption">Subtasks can have their own schedule and properties</Typography>
                         </Box>
                     ) : (
                         <List>
-                            {subtasks.map(subtask => (
-                                <ListItem key={subtask.id} dense>
+                            {childTasks.map(childTask => (
+                                <ListItem
+                                    key={childTask.id}
+                                    dense
+                                    sx={{
+                                        cursor: 'pointer',
+                                        '&:hover': { backgroundColor: 'action.hover' },
+                                        borderRadius: 1
+                                    }}
+                                >
                                     <ListItemIcon>
                                         <Checkbox
                                             edge="start"
-                                            checked={subtask.completed}
-                                            onChange={() => onToggleSubtask(subtask.id, !subtask.completed)}
+                                            checked={
+                                                // For recurring parents, check childTaskCompletions for this instance
+                                                // For ongoing/regular parents, use the task's completed field
+                                                task.recurrence
+                                                    ? childTaskCompletions.some(c => c.child_task_id === childTask.id && c.instance_date === (instanceDate || new Date().toISOString().split('T')[0]))
+                                                    : childTask.completed
+                                            }
+                                            onChange={() => onToggleChildTask(childTask.id, instanceDate || undefined)}
+                                            onClick={(e) => e.stopPropagation()}
                                             sx={{ '&.Mui-checked': { color: '#f97316' } }}
                                         />
                                     </ListItemIcon>
                                     <ListItemText
-                                        primary={subtask.title}
+                                        onClick={() => onEditChildTask(childTask)}
+                                        primary={childTask.title}
+                                        secondary={
+                                            // Show task details: recurrence, due date, priority
+                                            [
+                                                childTask.recurrence && `📅 ${childTask.recurrence}`,
+                                                childTask.due_date && `📆 ${new Date(childTask.due_date).toLocaleDateString()}`,
+                                                childTask.priority && childTask.priority !== 'medium' && (childTask.priority === 'high' ? '🔥 High' : '💤 Low')
+                                            ].filter(Boolean).join(' • ') || undefined
+                                        }
                                         sx={{
-                                            textDecoration: subtask.completed ? 'line-through' : 'none',
-                                            color: subtask.completed ? 'text.secondary' : 'text.primary',
+                                            textDecoration: (task.recurrence
+                                                ? childTaskCompletions.some(c => c.child_task_id === childTask.id && c.instance_date === (instanceDate || new Date().toISOString().split('T')[0]))
+                                                : childTask.completed) ? 'line-through' : 'none',
+                                            color: childTask.completed ? 'text.secondary' : 'text.primary',
                                         }}
                                     />
                                     <ListItemSecondaryAction>
                                         <IconButton
                                             edge="end"
                                             size="small"
-                                            onClick={() => onDeleteSubtask(subtask.id)}
+                                            onClick={() => onDeleteChildTask(childTask.id)}
                                         >
                                             ✕
                                         </IconButton>

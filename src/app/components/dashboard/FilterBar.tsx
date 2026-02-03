@@ -1,43 +1,43 @@
 "use client"
 
 import { useState } from "react"
-import { Category } from "@/app/types"
+import { Tag } from "@/app/types"
 import { DatePicker } from "@mui/x-date-pickers"
 
 interface FilterBarProps {
     isDark: boolean
-    filterCategory: string
+    filterTag: string
     viewMode: 'day' | 'week' | 'month'
     selectedDate: Date
-    categories: Category[]
+    tags: Tag[]
     hideRecurring?: boolean
     sortBy?: 'type' | 'priority' | 'due'
     sortOrder?: 'asc' | 'desc'
-    onFilterCategoryChange: (categoryId: string) => void
+    onFilterTagChange: (tagId: string) => void
     onViewModeChange: (mode: 'day' | 'week' | 'month') => void
     onDateChange: (date: Date) => void
     onHideRecurringChange?: (hide: boolean) => void
     onSortChange?: (sortBy: 'type' | 'priority' | 'due', order: 'asc' | 'desc') => void
-    onAddCategory: (name: string) => void
-    onManageCategories?: () => void
+    onAddTag: (name: string) => void
+    onManageTags?: () => void
 }
 
 export function FilterBar({
     isDark,
-    filterCategory,
+    filterTag,
     viewMode,
     selectedDate,
-    categories,
+    tags,
     hideRecurring = false,
     sortBy = 'type',
     sortOrder = 'asc',
-    onFilterCategoryChange,
+    onFilterTagChange,
     onViewModeChange,
     onDateChange,
     onHideRecurringChange,
     onSortChange,
-    onAddCategory,
-    onManageCategories
+    onAddTag,
+    onManageTags
 }: FilterBarProps) {
     const textMuted = isDark ? "text-white/40" : "text-gray-500"
     const textHover = isDark ? "hover:text-white/60" : "hover:text-gray-700"
@@ -214,37 +214,37 @@ export function FilterBar({
 
             {/* Filter Controls Row */}
             <div className="flex flex-col min-[450px]:flex-row items-end min-[450px]:items-center justify-between gap-1 w-full">
-                {/* Category Filter + Add Category */}
+                {/* Tag Filter + Add Tag */}
                 <div className="flex items-center gap-2 w-full min-[450px]:w-auto min-[450px]:flex-1 min-w-0 mr-0">
                     <select
-                        value={filterCategory}
-                        onChange={(e) => onFilterCategoryChange(e.target.value)}
+                        value={filterTag}
+                        onChange={(e) => onFilterTagChange(e.target.value)}
                         className={`${inputClass} text-sm rounded px-3 py-1 focus:outline-none max-w-[140px] border`}
                     >
-                        <option value="all">All Categories</option>
-                        {categories.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        <option value="all">All Tags</option>
+                        {tags.map(tag => (
+                            <option key={tag.id} value={tag.id}>{tag.name}</option>
                         ))}
                     </select>
 
-                    {onManageCategories && (
+                    {onManageTags && (
                         <button
-                            onClick={onManageCategories}
+                            onClick={onManageTags}
                             className={`text-sm px-2 py-1 rounded transition-colors ${isDark ? 'text-white/40 hover:text-white/60 hover:bg-white/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'}`}
-                            title="Manage Categories"
+                            title="Manage Tags"
                         >
                             ⚙️
                         </button>
                     )}
 
-                    {/* Add Category (always next to category filter) */}
+                    {/* Add Tag */}
                     <input
                         type="text"
-                        placeholder="New Category"
+                        placeholder="New Tag"
                         className={`${inputClass} text-sm rounded px-2 py-1 focus:outline-none flex-1 min-w-[40px] border`}
                         onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                                onAddCategory(e.currentTarget.value)
+                                onAddTag(e.currentTarget.value)
                                 e.currentTarget.value = ''
                             }
                         }}
@@ -254,7 +254,7 @@ export function FilterBar({
                         onClick={(e) => {
                             const input = e.currentTarget.previousElementSibling as HTMLInputElement
                             if (input && input.value) {
-                                onAddCategory(input.value)
+                                onAddTag(input.value)
                                 input.value = ''
                             }
                         }}
@@ -263,7 +263,7 @@ export function FilterBar({
                     </button>
                 </div>
 
-                {/* Sort Controls (Day view only) - on same line as category */}
+                {/* Sort Controls (Day view only) - on same line as tag filter */}
                 {onSortChange && showSortControls && (
                     <div className="flex items-center gap-2 flex-shrink-0">
                         <span className={`text-sm ${textMuted}`}>Sort:</span>

@@ -1,16 +1,23 @@
 export interface Task {
   id: string
   user_id: string
-  category_id: string | null
+  category_id: string | null // Deprecated - use tags instead
   title: string
   completed: boolean
   due_date: string | null
   priority: 'low' | 'medium' | 'high'
-  recurrence?: 'daily' | 'weekly' | 'monthly' | null
+  recurrence?: 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annually' | 'custom' | null
+  recurrence_interval_days?: number | null // Used when recurrence = 'custom'
+  pinned?: boolean // Deprecated - use ongoing instead
+  ongoing?: boolean // Ongoing tasks always show in daily view
+  parent_task_id?: string | null // For child tasks, references parent task
+  depth?: number // 0 = top-level, 1 = child, 2 = grandchild
+  show_children_in_timeline?: boolean // Whether child tasks appear independently in timeline
   reminder_minutes_before?: number | null
   created_at: string
   completed_at: string | null
   comment_count?: number // Computed field for display
+  tags?: { id: string; name: string; color: string }[] // Tags loaded via join
 }
 
 export interface Subtask {
@@ -31,10 +38,11 @@ export interface Comment {
   created_at: string
 }
 
-// Task with nested subtasks and comments
+// Task with nested subtasks, comments, and child tasks
 export interface TaskWithDetails extends Task {
   subtasks?: Subtask[]
   comments?: Comment[]
+  child_tasks?: Task[] // For task hierarchy
 }
 
 // Virtual instance for timeline view of recurring tasks
@@ -55,6 +63,16 @@ export interface RecurringTaskCompletion {
   completed_at: string
 }
 
+// Track child task completions for recurring parent tasks
+export interface ChildTaskCompletion {
+  id: string
+  child_task_id: string
+  parent_task_id: string
+  user_id: string
+  instance_date: string  // Parent's instance date (YYYY-MM-DD)
+  completed_at: string
+}
+
 // Timeline view configuration
 export type TimelineViewMode = 'day' | 'week' | 'month'
 export type TaskSortBy = 'type' | 'priority' | 'due'
@@ -66,6 +84,21 @@ export interface Category {
   name: string
   color: string
   created_at: string
+}
+
+// Tags - multi-tag support (replacing single category)
+export interface Tag {
+  id: string
+  user_id: string
+  name: string
+  color: string
+  created_at: string
+}
+
+// Junction table for task-tag relationships
+export interface TaskTag {
+  task_id: string
+  tag_id: string
 }
 
 export interface UserPreferences {
@@ -91,7 +124,8 @@ export interface NewTask {
   category_id?: string | null
   due_date?: string | null
   priority?: 'low' | 'medium' | 'high'
-  recurrence?: 'daily' | 'weekly' | 'monthly' | null
+  recurrence?: 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annually' | 'custom' | null
+  recurrence_interval_days?: number | null
   reminder_minutes_before?: number | null
 }
 
