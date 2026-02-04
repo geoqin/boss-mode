@@ -599,6 +599,26 @@ export default function DashboardPage() {
     }
   }
 
+  // Task reordering handler
+  const reorderTasks = async (taskIds: string[], groupKey: string) => {
+    // Update sort_order for each task based on position in array
+    const updates = taskIds.map((taskId, index) => ({
+      id: taskId,
+      sort_order: index
+    }))
+
+    // Optimistically update local state
+    setTasks(prev => prev.map(t => {
+      const update = updates.find(u => u.id === t.id)
+      return update ? { ...t, sort_order: update.sort_order } : t
+    }))
+
+    // Persist to database
+    for (const { id, sort_order } of updates) {
+      await supabase.from('tasks').update({ sort_order }).eq('id', id)
+    }
+  }
+
   // Category handlers
   const addCategory = async (name: string) => {
     if (!user || !name.trim()) return
@@ -915,6 +935,7 @@ export default function DashboardPage() {
                 onDelete={deleteTask}
                 onEdit={handleEditTask}
                 onHideRecurringChange={setHideRecurring}
+                onReorderTasks={reorderTasks}
                 theme={theme}
               />
             </div>

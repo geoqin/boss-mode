@@ -1,10 +1,26 @@
 "use client"
 
 import { Task, RecurringTaskCompletion } from "@/app/types"
-import { useMemo, Fragment } from "react"
+import { useMemo, Fragment, useState, useCallback } from "react"
 import { useDeleteConfirm } from "@/app/components/DeleteConfirmProvider"
 import { isInstanceCompleted, getRecurringInstances } from "@/app/utils/taskUtils"
 import { formatLocalDate } from "@/app/utils/dateUtils"
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    TouchSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent,
+    DragOverEvent
+} from '@dnd-kit/core'
+import {
+    SortableContext,
+    verticalListSortingStrategy,
+    arrayMove
+} from '@dnd-kit/sortable'
+import { SortableTask } from './SortableTask'
 
 interface DayViewProps {
     tasks: Task[]
@@ -18,6 +34,8 @@ interface DayViewProps {
     onEdit: (task: Task, instanceDate?: string) => void
     onDateChange: (date: Date) => void
     onHideRecurringChange?: (hide: boolean) => void
+    onReorderTasks?: (taskIds: string[], groupKey: string) => void
+    onMoveTaskToParent?: (childTaskId: string, parentTaskId: string) => Promise<boolean>
     isDark: boolean
 }
 
@@ -46,6 +64,8 @@ export function DayView({
     onDelete,
     onEdit,
     onHideRecurringChange,
+    onReorderTasks,
+    onMoveTaskToParent,
     isDark
 }: DayViewProps) {
     const { confirmDelete } = useDeleteConfirm()
@@ -53,6 +73,19 @@ export function DayView({
     const today = formatLocalDate(new Date())
     const isToday = dateStr === today
     const isPast = dateStr < today
+
+    // Rearrange mode state
+    const [isRearrangeMode, setIsRearrangeMode] = useState(false)
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+
+    // DnD sensors for pointer (mouse) and touch
+    const pointerSensor = useSensor(PointerSensor, {
+        activationConstraint: { distance: 8 }
+    })
+    const touchSensor = useSensor(TouchSensor, {
+        activationConstraint: { delay: 200, tolerance: 5 }
+    })
+    const sensors = useSensors(pointerSensor, touchSensor)
 
     // Get tasks for this specific day
     const dayTasks = useMemo(() => {
@@ -141,7 +174,7 @@ export function DayView({
     const groupedTasks = useMemo((): TaskGroup[] => {
         const priorityScore = { high: 3, medium: 2, low: 1 }
 
-        // Sort all tasks by priority first (secondary sort)
+        // Base sort by priority
         const sortedByPriority = [...dayTasks].sort((a, b) => {
             const pA = priorityScore[a.task.priority || 'medium']
             const pB = priorityScore[b.task.priority || 'medium']
@@ -152,9 +185,13 @@ export function DayView({
 
         switch (sortBy) {
             case 'type': {
-                const ongoing = sortedByPriority.filter(t => t.task.ongoing && !t.isRecurring)
-                const recurring = sortedByPriority.filter(t => t.isRecurring && !t.task.ongoing)
-                const regular = sortedByPriority.filter(t => !t.isRecurring && !t.task.ongoing)
+                // For default 'type' view, use sort_order for manual reordering within each type
+                const sortByOrder = (items: DayTask[]) =>
+                    [...items].sort((a, b) => (a.task.sort_order ?? 0) - (b.task.sort_order ?? 0))
+
+                const ongoing = sortByOrder(sortedByPriority.filter(t => t.task.ongoing && !t.isRecurring))
+                const recurring = sortByOrder(sortedByPriority.filter(t => t.isRecurring && !t.task.ongoing))
+                const regular = sortByOrder(sortedByPriority.filter(t => !t.isRecurring && !t.task.ongoing))
 
                 if (sortOrder === 'asc') {
                     // Reverse order: regular → recurring → ongoing
@@ -257,8 +294,63 @@ export function DayView({
         return groups
     }, [dayTasks, sortBy, sortOrder])
 
-    const completedCount = dayTasks.filter(t => t.isCompleted).length
-    const totalCount = dayTasks.length
+    // Handle drag end - reorder within group
+    const handleDragEnd = useCallback((event: DragEndEvent) => {
+        const { active, over } = event
+        if (!over || active.id === over.id) return
+
+        // Find which group these tasks belong to
+        const activeId = active.id as string
+        const overId = over.id as string
+
+        // Find the group containing both tasks
+        const group = groupedTasks.find(g =>
+            g.tasks.some(t => t.task.id === activeId) &&
+            g.tasks.some(t => t.task.id === overId)
+        )
+
+        if (group && onReorderTasks) {
+            const oldIndex = group.tasks.findIndex(t => t.task.id === activeId)
+            const newIndex = group.tasks.findIndex(t => t.task.id === overId)
+            const newOrder = arrayMove(group.tasks.map(t => t.task.id), oldIndex, newIndex)
+            onReorderTasks(newOrder, group.key)
+        }
+    }, [onReorderTasks, groupedTasks])
+
+    // Handle click-to-swap
+    const handleTaskClick = useCallback((taskId: string, groupKey: string) => {
+        if (!isRearrangeMode) return
+
+        if (!selectedTaskId) {
+            // First selection
+            setSelectedTaskId(taskId)
+        } else if (selectedTaskId === taskId) {
+            // Same task - deselect
+            setSelectedTaskId(null)
+        } else {
+            // Second selection - swap if in same group
+            const group = groupedTasks.find(g => g.key === groupKey)
+            if (group && group.tasks.some(t => t.task.id === selectedTaskId) && onReorderTasks) {
+                const taskIds = group.tasks.map(t => t.task.id)
+                const idx1 = taskIds.indexOf(selectedTaskId)
+                const idx2 = taskIds.indexOf(taskId)
+                if (idx1 !== -1 && idx2 !== -1) {
+                    // Swap positions
+                    const newOrder = [...taskIds]
+                    newOrder[idx1] = taskId
+                    newOrder[idx2] = selectedTaskId
+                    onReorderTasks(newOrder, groupKey)
+                }
+            }
+            setSelectedTaskId(null)
+        }
+    }, [isRearrangeMode, selectedTaskId, onReorderTasks, groupedTasks])
+
+    // Handle drag over another task (make subtask)
+    const handleDragOver = useCallback((event: DragOverEvent) => {
+        // For now, we handle this in onDragEnd for drop-onto-task
+        // This would need more complex implementation for visual feedback
+    }, [])
 
     if (dayTasks.length === 0) {
         return (
@@ -276,7 +368,7 @@ export function DayView({
 
     const renderTaskItem = (item: DayTask) => {
         const { task, isCompleted, isRecurring, instanceDate } = item
-        const isOverdue = !isRecurring && !isCompleted && task.due_date && task.due_date.split('T')[0] < today
+        const isOverdue = !isRecurring && !isCompleted && !task.ongoing && task.due_date && task.due_date.split('T')[0] < today
 
         return (
             <div
@@ -305,7 +397,7 @@ export function DayView({
                 {/* Task content - clickable to edit */}
                 <div
                     className={`flex flex-col flex-1 min-w-0 cursor-pointer ${isCompleted ? 'opacity-60' : ''}`}
-                    onClick={() => onEdit(task, instanceDate)}
+                    onClick={() => !isRearrangeMode && onEdit(task, instanceDate)}
                 >
                     <span className={`block font-medium truncate ${isDark ? 'text-white/90' : 'text-gray-900'} ${isCompleted ? 'line-through' : ''}`}>
                         {task.title}
@@ -359,35 +451,70 @@ export function DayView({
 
     return (
         <div className="space-y-3">
-            {/* Progress indicator and Hide Recurring toggle */}
+            {/* Hide Recurring toggle (left) and Rearrange toggle (right) */}
             <div className="flex items-center justify-between mb-4">
-                <div className={`text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                    {completedCount} of {totalCount} completed
-                    {completedCount === totalCount && totalCount > 0 && ' 🎉'}
-                </div>
                 {onHideRecurringChange && (
                     <label className={`flex items-center gap-2 text-sm cursor-pointer ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                        Hide recurring and ongoing
                         <input
                             type="checkbox"
                             checked={hideRecurring}
                             onChange={(e) => onHideRecurringChange(e.target.checked)}
                             className="w-4 h-4 rounded"
                         />
+                        Hide recurring/ongoing
                     </label>
+                )}
+                {onReorderTasks && (
+                    <button
+                        onClick={() => {
+                            setIsRearrangeMode(!isRearrangeMode)
+                            setSelectedTaskId(null)
+                        }}
+                        className={`text-sm px-3 py-1 rounded-full transition-all ${isRearrangeMode
+                            ? 'bg-orange-500 text-white'
+                            : isDark
+                                ? 'bg-white/10 text-white/60 hover:bg-white/20'
+                                : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                            }`}
+                    >
+                        {isRearrangeMode ? '✓ Done' : '↕ Rearrange'}
+                    </button>
                 )}
             </div>
 
-            {groupedTasks.map((group, idx) => (
-                <div key={group.key} className={idx > 0 ? 'mt-6' : ''}>
-                    <h3 className={`text-xs uppercase tracking-wider font-semibold ${isDark ? 'text-white/40' : 'text-gray-500'} flex items-center gap-2 mb-3`}>
-                        {group.emoji} {group.label}
-                    </h3>
-                    <div className="space-y-3">
-                        {group.tasks.map(renderTaskItem)}
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+                onDragOver={handleDragOver}
+            >
+                {groupedTasks.map((group, idx) => (
+                    <div key={group.key} className={idx > 0 ? 'mt-6' : ''}>
+                        <h3 className={`text-xs uppercase tracking-wider font-semibold ${isDark ? 'text-white/40' : 'text-gray-500'} flex items-center gap-2 mb-3`}>
+                            {group.emoji} {group.label}
+                        </h3>
+                        <SortableContext
+                            items={group.tasks.map(t => t.task.id)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <div className="space-y-3">
+                                {group.tasks.map(item => (
+                                    <SortableTask
+                                        key={`${item.task.id}-${item.instanceDate}`}
+                                        id={item.task.id}
+                                        isSelected={selectedTaskId === item.task.id}
+                                        isRearrangeMode={isRearrangeMode}
+                                    >
+                                        <div onClick={() => handleTaskClick(item.task.id, group.key)}>
+                                            {renderTaskItem(item)}
+                                        </div>
+                                    </SortableTask>
+                                ))}
+                            </div>
+                        </SortableContext>
                     </div>
-                </div>
-            ))}
+                ))}
+            </DndContext>
         </div>
     )
 }

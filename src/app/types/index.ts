@@ -14,6 +14,7 @@ export interface Task {
   depth?: number // 0 = top-level, 1 = child, 2 = grandchild
   show_children_in_timeline?: boolean // Whether child tasks appear independently in timeline
   reminder_minutes_before?: number | null
+  sort_order?: number // For manual task ordering within groups
   created_at: string
   completed_at: string | null
   comment_count?: number // Computed field for display

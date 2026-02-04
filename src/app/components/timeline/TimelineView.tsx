@@ -21,6 +21,7 @@ interface TimelineViewProps {
     onDelete: (id: string) => void
     onEdit: (task: Task, instanceDate?: string) => void
     onHideRecurringChange: (hide: boolean) => void
+    onReorderTasks?: (taskIds: string[], groupKey: string) => void
     theme: 'light' | 'dark'
 }
 
@@ -38,6 +39,7 @@ export function TimelineView({
     onDelete,
     onEdit,
     onHideRecurringChange,
+    onReorderTasks,
     theme
 }: TimelineViewProps) {
     const isDark = theme === 'dark'
@@ -104,6 +106,7 @@ export function TimelineView({
         onDateChange,
         onViewModeChange,
         onHideRecurringChange,
+        onReorderTasks,
         isDark
     }
 
