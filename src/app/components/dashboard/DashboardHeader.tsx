@@ -4,9 +4,9 @@ import Link from "next/link"
 import { User } from "@supabase/supabase-js"
 import { Task } from "@/app/types"
 import { BossFace } from "../boss/BossFace"
-import { useState, useEffect, useRef } from "react"
-import { getLocalTodayDate } from "@/app/utils/dateUtils"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useMounted } from "@/hooks/useMounted"
+import { getRandomQuote, formatQuoteWithAuthor } from "@/app/utils/bossQuotes"
 
 interface DashboardHeaderProps {
     user: User | null
@@ -55,91 +55,12 @@ export function DashboardHeader({
     const textMuted = isDark ? "text-white/40" : "text-gray-500"
     const textHover = isDark ? "hover:text-white/60" : "hover:text-gray-700"
 
-    // Filter tasks for message: Only count tasks due Today or Earlier (or no due date)
-    // We use mounted guard for date calculation to prevent hydration mismatch
-    const today = mounted ? getLocalTodayDate() : ""
-    const relevantTasks = tasks.filter(t => !t.due_date || (today && t.due_date.split('T')[0] <= today))
-
-    const completedCount = relevantTasks.filter(t => t.completed).length
-    const totalCount = relevantTasks.length
-    const incompleteCount = totalCount - completedCount
-
-    // Boss Message Logic - Multiple messages per state for variety
-    const messages = {
-        noTasks: [
-            "No tasks? Add some work.",
-            "Where's your to-do list?",
-            "Idle hands, idle mind.",
-            "Got nothing? Let's change that.",
-            "The grind won't start itself."
-        ],
-        allDone: [
-            "Clean slate. Outstanding.",
-            "Nothing left? Impressive.",
-            "All done. Now rest... or add more.",
-            "Mission accomplished. Well done.",
-            "You actually finished everything. Respect."
-        ],
-        oneLeft: [
-            "Just one left. Finish it.",
-            "One task remains. Don't slack now.",
-            "Almost there. One more.",
-            "Finish strong. One to go.",
-            "So close. Just do the last one."
-        ],
-        fewLeft: [
-            "Stay focused.",
-            "Keep the momentum going.",
-            "You're on track. Keep pushing.",
-            "Good pace. Don't slow down.",
-            "A few left. You've got this."
-        ],
-        manyLeft: [
-            "Stop procrastinating.",
-            "Those tasks won't complete themselves.",
-            "Less scrolling, more doing.",
-            "Time to lock in.",
-            "Get to work. Now."
-        ],
-        lateNight: [
-            "It's late. Why isn't this done?",
-            "Burning the midnight oil?",
-            "Still at it? Finish up.",
-            "You should be done by now.",
-            "The clock is ticking. Wrap it up."
-        ],
-        superLate: [
-            "Grinding late? Respect.",
-            "Night owl mode. I see you.",
-            "Dedication at this hour? Noted.",
-            "The hustle never sleeps.",
-            "Working while others dream. Legend."
-        ]
-    }
-
-    // Use incomplete count + completed count to get different messages as tasks change
-    const pickMessage = (arr: string[]) => arr[(incompleteCount + completedCount) % arr.length]
-
-    let message = "Good work."
-    if (totalCount === 0) {
-        message = pickMessage(messages.noTasks)
-    } else if (incompleteCount === 0) {
-        message = pickMessage(messages.allDone)
-    } else if (incompleteCount === 1) {
-        message = pickMessage(messages.oneLeft)
-    } else if (incompleteCount <= 3) {
-        message = pickMessage(messages.fewLeft)
-    } else {
-        message = pickMessage(messages.manyLeft)
-    }
-
-    if (currentHour !== null) {
-        if (incompleteCount > 0 && currentHour >= 22) {
-            message = pickMessage(messages.lateNight)
-        } else if (incompleteCount > 0 && currentHour >= 0 && currentHour < 5) {
-            message = pickMessage(messages.superLate)
-        }
-    }
+    // Get a random quote on mount (changes on each page load/refresh)
+    const bossMessage = useMemo(() => {
+        if (!mounted) return "Loading..."
+        const quoteObj = getRandomQuote()
+        return formatQuoteWithAuthor(quoteObj)
+    }, [mounted])
 
     return (
         <header className="mb-2 animate-fade-in relative z-20">
@@ -234,7 +155,7 @@ export function DashboardHeader({
                     ? 'bg-[#1f2937] text-white/90 shadow-lg border border-white/5' // Solid dark gray bg
                     : 'bg-white text-gray-700 shadow-sm border border-gray-200'
                     }`}>
-                    {message}
+                    {bossMessage}
 
                     {/* SVG Tail */}
                     <svg
