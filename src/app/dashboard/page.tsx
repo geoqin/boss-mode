@@ -283,7 +283,8 @@ export default function DashboardPage() {
         priority: newTask.priority || 'medium',
         recurrence: newTask.recurrence || null,
         recurrence_interval_days: newTask.recurrence_interval_days || null,
-        reminder_minutes_before: newTask.reminder_minutes_before || null
+        reminder_minutes_before: newTask.reminder_minutes_before || null,
+        ongoing: newTask.ongoing || false
       })
       .select()
       .single()

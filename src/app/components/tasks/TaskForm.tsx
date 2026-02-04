@@ -27,6 +27,7 @@ import {
   PriorityHigh,
   Repeat,
   Label,
+  Loop,
 } from "@mui/icons-material"
 import { DatePicker, TimePicker } from "@mui/x-date-pickers"
 import { format, isAfter, addDays, startOfDay } from "date-fns"
@@ -46,6 +47,7 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
   const [customIntervalDays, setCustomIntervalDays] = useState<number | ''>("")
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [reminder, setReminder] = useState<string>("")
+  const [isOngoing, setIsOngoing] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -57,7 +59,17 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (formRef.current && !formRef.current.contains(event.target as Node) && !isSubmitting) {
+      const target = event.target as HTMLElement
+      // Check if click is inside form
+      const isInsideForm = formRef.current?.contains(target)
+      // Check if click is inside any MUI overlay (popover, menu, modal, backdrop)
+      // MUI renders these in portals outside the form DOM
+      const isInsideOverlay = target.closest?.(
+        '.MuiPopover-root, .MuiMenu-root, .MuiModal-root, .MuiBackdrop-root, ' +
+        '[role="presentation"], [role="menu"], [role="listbox"], [role="dialog"]'
+      )
+
+      if (!isInsideForm && !isInsideOverlay && !isSubmitting) {
         setShowAdvanced(false)
       }
     }
@@ -110,11 +122,12 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
 
       await onAdd({
         title,
-        due_date: isoDate,
+        due_date: isOngoing ? null : isoDate,
         priority,
-        recurrence: recurrence || null,
+        recurrence: isOngoing ? null : (recurrence || null),
         recurrence_interval_days: recurrence === 'custom' && customIntervalDays ? customIntervalDays : null,
-        reminder_minutes_before: reminder ? parseInt(reminder) : null
+        reminder_minutes_before: reminder ? parseInt(reminder) : null,
+        ongoing: isOngoing
       }, selectedTagIds.length > 0 ? selectedTagIds : undefined)
 
       setTitle("")
@@ -125,6 +138,7 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
       setCustomIntervalDays("")
       setSelectedTagIds([])
       setReminder("")
+      setIsOngoing(false)
       setShowAdvanced(false)
     } finally {
       setIsSubmitting(false)
@@ -290,22 +304,10 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                   </FormControl>
                 </Stack>
 
-                {/* Row 4: Tags + Repeat */}
+                {/* Row 4: Tags (dropdown first, then chips horizontally) */}
                 <Stack direction="row" spacing={1} alignItems="center">
                   <FieldIcon icon={<Label fontSize="small" />} label="Tags" />
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center', flex: 1 }}>
-                    {selectedTagIds.map(tagId => {
-                      const tag = tags.find(t => t.id === tagId)
-                      return tag ? (
-                        <Chip
-                          key={tag.id}
-                          label={tag.name}
-                          size="small"
-                          onDelete={() => setSelectedTagIds(prev => prev.filter(id => id !== tagId))}
-                          sx={{ backgroundColor: tag.color, color: '#fff', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } }}
-                        />
-                      ) : null
-                    })}
                     {tags.filter(t => !selectedTagIds.includes(t.id)).length > 0 && (
                       <FormControl size="small" sx={{ minWidth: 60 }} disabled={isSubmitting}>
                         <Select
@@ -328,9 +330,25 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                         </Select>
                       </FormControl>
                     )}
+                    {selectedTagIds.map(tagId => {
+                      const tag = tags.find(t => t.id === tagId)
+                      return tag ? (
+                        <Chip
+                          key={tag.id}
+                          label={tag.name}
+                          size="small"
+                          onDelete={() => setSelectedTagIds(prev => prev.filter(id => id !== tagId))}
+                          sx={{ backgroundColor: tag.color, color: '#fff', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } }}
+                        />
+                      ) : null
+                    })}
                   </Box>
+                </Stack>
+
+                {/* Row 5: Repeat + Ongoing */}
+                <Stack direction="row" spacing={1} alignItems="center">
                   <FieldIcon icon={<Repeat fontSize="small" />} label="Repeat" />
-                  <FormControl size="small" sx={{ flex: 1 }} disabled={isSubmitting}>
+                  <FormControl size="small" sx={{ minWidth: 50 }} disabled={isSubmitting}>
                     <Select value={recurrence} onChange={e => setRecurrence(e.target.value as typeof recurrence)} displayEmpty>
                       <MenuItem value="">—</MenuItem>
                       <MenuItem value="daily">D</MenuItem>
@@ -342,6 +360,26 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                       <MenuItem value="custom">...</MenuItem>
                     </Select>
                   </FormControl>
+                  <FieldIcon icon={<Loop fontSize="small" />} label="Ongoing" />
+                  <Button
+                    variant={isOngoing ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => setIsOngoing(!isOngoing)}
+                    disabled={isSubmitting}
+                    sx={{
+                      borderRadius: '16px',
+                      textTransform: 'none',
+                      px: 1.5,
+                      minWidth: 36,
+                      width: 36,
+                      ...(isOngoing ? {
+                        background: '#f97316',
+                        '&:hover': { background: '#ea580c' }
+                      } : {})
+                    }}
+                  >
+                    {isOngoing ? '🔄' : '○'}
+                  </Button>
                 </Stack>
 
                 {/* Custom Interval Row (only shown when custom is selected) */}
@@ -423,18 +461,6 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                   {/* Tags Chip Selector */}
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center', flex: 2 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mr: 1 }}>Tags:</Typography>
-                    {selectedTagIds.map(tagId => {
-                      const tag = tags.find(t => t.id === tagId)
-                      return tag ? (
-                        <Chip
-                          key={tag.id}
-                          label={tag.name}
-                          size="small"
-                          onDelete={() => setSelectedTagIds(prev => prev.filter(id => id !== tagId))}
-                          sx={{ backgroundColor: tag.color, color: '#fff', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } }}
-                        />
-                      ) : null
-                    })}
                     {tags.filter(t => !selectedTagIds.includes(t.id)).length > 0 && (
                       <FormControl size="small" sx={{ minWidth: 100 }} disabled={isSubmitting}>
                         <InputLabel>Add tag</InputLabel>
@@ -456,6 +482,18 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                         </Select>
                       </FormControl>
                     )}
+                    {selectedTagIds.map(tagId => {
+                      const tag = tags.find(t => t.id === tagId)
+                      return tag ? (
+                        <Chip
+                          key={tag.id}
+                          label={tag.name}
+                          size="small"
+                          onDelete={() => setSelectedTagIds(prev => prev.filter(id => id !== tagId))}
+                          sx={{ backgroundColor: tag.color, color: '#fff', '& .MuiChip-deleteIcon': { color: 'rgba(255,255,255,0.7)' } }}
+                        />
+                      ) : null
+                    })}
                   </Box>
                 </Stack>
 
@@ -475,6 +513,34 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                     <Typography variant="body2" color="text.secondary" sx={{ minWidth: 40 }}>days</Typography>
                   </Stack>
                 )}
+
+                {/* Ongoing Toggle Row */}
+                <Stack direction="row" spacing={2} alignItems="center">
+                  <Button
+                    variant={isOngoing ? "contained" : "outlined"}
+                    size="small"
+                    onClick={() => setIsOngoing(!isOngoing)}
+                    disabled={isSubmitting}
+                    startIcon={<Loop />}
+                    sx={{
+                      borderRadius: '20px',
+                      textTransform: 'none',
+                      px: 2,
+                      minWidth: 120,
+                      ...(isOngoing ? {
+                        background: '#f97316',
+                        '&:hover': { background: '#ea580c' }
+                      } : {})
+                    }}
+                  >
+                    Ongoing
+                  </Button>
+                  {isOngoing && (
+                    <Typography variant="body2" color="text.secondary">
+                      Shows daily, no due date
+                    </Typography>
+                  )}
+                </Stack>
               </Stack>
             )}
           </Box>

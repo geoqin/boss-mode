@@ -128,6 +128,7 @@ export interface NewTask {
   recurrence?: 'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annually' | 'custom' | null
   recurrence_interval_days?: number | null
   reminder_minutes_before?: number | null
+  ongoing?: boolean
 }
 
 // For creating new categories

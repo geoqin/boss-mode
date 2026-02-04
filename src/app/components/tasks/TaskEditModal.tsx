@@ -419,7 +419,36 @@ export function TaskEditModal({
                             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                                 Tags
                             </Typography>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: 1 }}>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
+                                {tags.filter(t => !taskTags.some(tt => tt.id === t.id)).length > 0 && onAddTagToTask && (
+                                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                                        <InputLabel>Add tag</InputLabel>
+                                        <Select
+                                            value=""
+                                            onChange={async (e) => {
+                                                const tagId = e.target.value
+                                                if (tagId) {
+                                                    const tagToAdd = tags.find(t => t.id === tagId)
+                                                    if (tagToAdd) {
+                                                        await onAddTagToTask(task.id, tagId)
+                                                        setTaskTags(prev => [...prev, tagToAdd])
+                                                    }
+                                                }
+                                            }}
+                                            label="Add tag"
+                                            size="small"
+                                        >
+                                            {tags.filter(t => !taskTags.some(tt => tt.id === t.id)).map(tag => (
+                                                <MenuItem key={tag.id} value={tag.id}>
+                                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                        <Box sx={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: tag.color }} />
+                                                        {tag.name}
+                                                    </Box>
+                                                </MenuItem>
+                                            ))}
+                                        </Select>
+                                    </FormControl>
+                                )}
                                 {taskTags.map(tag => (
                                     <Chip
                                         key={tag.id}
@@ -437,35 +466,6 @@ export function TaskEditModal({
                                     />
                                 ))}
                             </Box>
-                            {tags.filter(t => !taskTags.some(tt => tt.id === t.id)).length > 0 && onAddTagToTask && (
-                                <FormControl size="small" sx={{ minWidth: 150 }}>
-                                    <InputLabel>Add tag</InputLabel>
-                                    <Select
-                                        value=""
-                                        onChange={async (e) => {
-                                            const tagId = e.target.value
-                                            if (tagId) {
-                                                const tagToAdd = tags.find(t => t.id === tagId)
-                                                if (tagToAdd) {
-                                                    await onAddTagToTask(task.id, tagId)
-                                                    setTaskTags(prev => [...prev, tagToAdd])
-                                                }
-                                            }
-                                        }}
-                                        label="Add tag"
-                                        size="small"
-                                    >
-                                        {tags.filter(t => !taskTags.some(tt => tt.id === t.id)).map(tag => (
-                                            <MenuItem key={tag.id} value={tag.id}>
-                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                    <Box sx={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: tag.color }} />
-                                                    {tag.name}
-                                                </Box>
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            )}
                         </Box>
 
                         <FormControlLabel
