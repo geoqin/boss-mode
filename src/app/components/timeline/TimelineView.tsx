@@ -42,10 +42,10 @@ export function TimelineView({
 }: TimelineViewProps) {
     const isDark = theme === 'dark'
 
-    // Filter tasks based on hideRecurring
+    // Filter tasks based on hideRecurring (hides both recurring and ongoing)
     const filteredTasks = useMemo(() => {
         if (hideRecurring) {
-            return tasks.filter(t => !t.recurrence)
+            return tasks.filter(t => !t.recurrence && !t.ongoing)
         }
         return tasks
     }, [tasks, hideRecurring])

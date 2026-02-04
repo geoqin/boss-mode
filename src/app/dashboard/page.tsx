@@ -733,8 +733,8 @@ export default function DashboardPage() {
   const todaysTasks = tasks.filter(task => {
     // Apply tag filter
     if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
-    // Apply hideRecurring filter
-    if (hideRecurring && task.recurrence) return false
+    // Apply hideRecurring filter (hides both recurring and ongoing)
+    if (hideRecurring && (task.recurrence || task.ongoing)) return false
 
     if (task.recurrence) {
       // For recurring tasks: use getRecurringInstances to check if there's an instance today
@@ -786,7 +786,7 @@ export default function DashboardPage() {
   const filteredTasks = todaysTasks
     .filter(task => {
       if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
-      if (hideRecurring && task.recurrence) return false
+      if (hideRecurring && (task.recurrence || task.ongoing)) return false
       return true
     })
     .sort((a, b) => {
@@ -814,7 +814,7 @@ export default function DashboardPage() {
   // Timeline tasks - all tasks for timeline views
   const timelineTasks = tasks.filter(task => {
     if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
-    if (hideRecurring && task.recurrence) return false
+    if (hideRecurring && (task.recurrence || task.ongoing)) return false
     return true
   })
 

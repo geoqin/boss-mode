@@ -187,7 +187,7 @@ export function WeekView({
             {onHideRecurringChange && (
                 <div className="flex justify-end">
                     <label className={`flex items-center gap-2 text-sm cursor-pointer ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                        Hide recurring
+                        Hide recurring and ongoing
                         <input
                             type="checkbox"
                             checked={hideRecurring}

@@ -157,13 +157,15 @@ export function DayView({
                 const regular = sortedByPriority.filter(t => !t.isRecurring && !t.task.ongoing)
 
                 if (sortOrder === 'asc') {
-                    if (ongoing.length) groups.push({ key: 'ongoing', label: 'Ongoing', emoji: '🔄', tasks: ongoing })
+                    // Reverse order: regular → recurring → ongoing
                     if (regular.length) groups.push({ key: 'tasks', label: 'Tasks', emoji: '📝', tasks: regular })
                     if (recurring.length) groups.push({ key: 'recurring', label: 'Recurring', emoji: '📅', tasks: recurring })
+                    if (ongoing.length) groups.push({ key: 'ongoing', label: 'Ongoing', emoji: '🔄', tasks: ongoing })
                 } else {
+                    // Default order: ongoing → recurring → regular (one-offs at bottom, easy to show alone)
+                    if (ongoing.length) groups.push({ key: 'ongoing', label: 'Ongoing', emoji: '🔄', tasks: ongoing })
                     if (recurring.length) groups.push({ key: 'recurring', label: 'Recurring', emoji: '📅', tasks: recurring })
                     if (regular.length) groups.push({ key: 'tasks', label: 'Tasks', emoji: '📝', tasks: regular })
-                    if (ongoing.length) groups.push({ key: 'ongoing', label: 'Ongoing', emoji: '🔄', tasks: ongoing })
                 }
                 break
             }
@@ -365,7 +367,7 @@ export function DayView({
                 </div>
                 {onHideRecurringChange && (
                     <label className={`flex items-center gap-2 text-sm cursor-pointer ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
-                        Hide recurring
+                        Hide recurring and ongoing
                         <input
                             type="checkbox"
                             checked={hideRecurring}
