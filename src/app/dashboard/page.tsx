@@ -31,7 +31,7 @@ export default function DashboardPage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [hideRecurring, setHideRecurring] = useState(false)
   const [sortBy, setSortBy] = useState<TaskSortBy>('type')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc')
   const [error, setError] = useState<string | null>(null)
   const { mode: theme, setMode } = useTheme()
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
