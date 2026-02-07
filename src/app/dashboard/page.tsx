@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useBossReminders } from "@/hooks/useBossReminders"
 import { isInstanceCompleted, getTasksForDate, getMissedTasks, getRecurringInstances } from "@/app/utils/taskUtils"
-import { getLocalTodayDate, formatLocalDateTime } from "@/app/utils/dateUtils"
+import { getLocalTodayDate, formatLocalDateTime, getEffectiveDate } from "@/app/utils/dateUtils"
 import { ReminderManager } from "../components/ReminderManager"
 
 export default function DashboardPage() {
@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const { mode: theme, setMode } = useTheme()
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [profile, setProfile] = useState<{ first_name: string | null, last_name: string | null }>({ first_name: null, last_name: null })
+  const [dayStartHour, setDayStartHour] = useState(6)
   const [isClient, setIsClient] = useState(false)
 
   // Modal states
@@ -194,13 +195,16 @@ export default function DashboardPage() {
       // Fetch Preferences
       const { data: prefData } = await supabase
         .from('user_preferences')
-        .select('theme, first_name, last_name, notifications_enabled')
+        .select('theme, first_name, last_name, notifications_enabled, day_start_hour')
         .eq('user_id', user.id)
         .single()
 
       if (prefData) {
         if (prefData.theme) setMode(prefData.theme as 'light' | 'dark')
         if (prefData.notifications_enabled !== undefined) setNotificationsEnabled(prefData.notifications_enabled)
+        if (prefData.day_start_hour !== null && prefData.day_start_hour !== undefined) {
+          setDayStartHour(prefData.day_start_hour)
+        }
         setProfile({ first_name: prefData.first_name, last_name: prefData.last_name })
       }
 
@@ -746,7 +750,7 @@ export default function DashboardPage() {
   }
 
   // --- Filtering Logic ---
-  const today = getLocalTodayDate()
+  const today = getEffectiveDate(dayStartHour)
   const todayDate = new Date()
   todayDate.setHours(0, 0, 0, 0)
 
@@ -915,6 +919,7 @@ export default function DashboardPage() {
             }}
             onAddTag={async (name) => { await addTag(name) }}
             onManageTags={() => setShowCategoryManager(true)}
+            dayStartHour={dayStartHour}
           />
 
           {/* Main content card */}
@@ -938,6 +943,7 @@ export default function DashboardPage() {
                 onHideRecurringChange={setHideRecurring}
                 onReorderTasks={reorderTasks}
                 theme={theme}
+                dayStartHour={dayStartHour}
               />
             </div>
           </div>

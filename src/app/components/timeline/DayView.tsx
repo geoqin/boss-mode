@@ -4,7 +4,7 @@ import { Task, RecurringTaskCompletion } from "@/app/types"
 import { useMemo, Fragment, useState, useCallback } from "react"
 import { useDeleteConfirm } from "@/app/components/DeleteConfirmProvider"
 import { isInstanceCompleted, getRecurringInstances } from "@/app/utils/taskUtils"
-import { formatLocalDate } from "@/app/utils/dateUtils"
+import { formatLocalDate, getEffectiveDate } from "@/app/utils/dateUtils"
 import {
     DndContext,
     closestCenter,
@@ -37,6 +37,7 @@ interface DayViewProps {
     onReorderTasks?: (taskIds: string[], groupKey: string) => void
     onMoveTaskToParent?: (childTaskId: string, parentTaskId: string) => Promise<boolean>
     isDark: boolean
+    dayStartHour?: number
 }
 
 interface DayTask {
@@ -66,11 +67,12 @@ export function DayView({
     onHideRecurringChange,
     onReorderTasks,
     onMoveTaskToParent,
-    isDark
+    isDark,
+    dayStartHour = 6
 }: DayViewProps) {
     const { confirmDelete } = useDeleteConfirm()
     const dateStr = formatLocalDate(selectedDate)
-    const today = formatLocalDate(new Date())
+    const today = getEffectiveDate(dayStartHour)
     const isToday = dateStr === today
     const isPast = dateStr < today
 

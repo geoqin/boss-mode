@@ -23,6 +23,7 @@ interface TimelineViewProps {
     onHideRecurringChange: (hide: boolean) => void
     onReorderTasks?: (taskIds: string[], groupKey: string) => void
     theme: 'light' | 'dark'
+    dayStartHour?: number
 }
 
 export function TimelineView({
@@ -40,7 +41,8 @@ export function TimelineView({
     onEdit,
     onHideRecurringChange,
     onReorderTasks,
-    theme
+    theme,
+    dayStartHour = 6
 }: TimelineViewProps) {
     const isDark = theme === 'dark'
 
@@ -107,7 +109,8 @@ export function TimelineView({
         onViewModeChange,
         onHideRecurringChange,
         onReorderTasks,
-        isDark
+        isDark,
+        dayStartHour
     }
 
     const renderView = () => {

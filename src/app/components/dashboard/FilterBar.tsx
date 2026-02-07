@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { Tag } from "@/app/types"
 import { DatePicker } from "@mui/x-date-pickers"
+import { getEffectiveDate, formatLocalDate } from "@/app/utils/dateUtils"
 
 interface FilterBarProps {
     isDark: boolean
@@ -20,6 +21,7 @@ interface FilterBarProps {
     onSortChange?: (sortBy: 'type' | 'priority' | 'due', order: 'asc' | 'desc') => void
     onAddTag: (name: string) => void
     onManageTags?: () => void
+    dayStartHour?: number
 }
 
 export function FilterBar({
@@ -37,7 +39,8 @@ export function FilterBar({
     onHideRecurringChange,
     onSortChange,
     onAddTag,
-    onManageTags
+    onManageTags,
+    dayStartHour = 6
 }: FilterBarProps) {
     const textMuted = isDark ? "text-white/40" : "text-gray-500"
     const textHover = isDark ? "hover:text-white/60" : "hover:text-gray-700"
@@ -53,13 +56,18 @@ export function FilterBar({
 
     const [showDatePicker, setShowDatePicker] = useState(false)
 
+    // Use effective date for "today" comparison (respects day start hour)
+    const effectiveToday = getEffectiveDate(dayStartHour)
+
     const isToday = () => {
-        const today = new Date()
-        return selectedDate.toDateString() === today.toDateString()
+        const selectedDateStr = formatLocalDate(selectedDate)
+        return selectedDateStr === effectiveToday
     }
 
     const goToToday = () => {
-        onDateChange(new Date())
+        // Navigate to effective "today" - parse the effective date string back to Date
+        const [y, m, d] = effectiveToday.split('-').map(Number)
+        onDateChange(new Date(y, m - 1, d))
         onViewModeChange('day')
     }
 
@@ -98,13 +106,21 @@ export function FilterBar({
     const getDateLabel = () => {
         switch (viewMode) {
             case 'day':
-                if (isToday()) return 'Today'
-                const yesterday = new Date()
-                yesterday.setDate(yesterday.getDate() - 1)
-                if (selectedDate.toDateString() === yesterday.toDateString()) return 'Yesterday'
-                const tomorrow = new Date()
-                tomorrow.setDate(tomorrow.getDate() + 1)
-                if (selectedDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
+                const selectedDateStr = formatLocalDate(selectedDate)
+                if (selectedDateStr === effectiveToday) return 'Today'
+
+                // Calculate effective yesterday and tomorrow based on effective today
+                const [y, m, d] = effectiveToday.split('-').map(Number)
+                const effectiveTodayDate = new Date(y, m - 1, d)
+
+                const effectiveYesterday = new Date(effectiveTodayDate)
+                effectiveYesterday.setDate(effectiveYesterday.getDate() - 1)
+                if (selectedDateStr === formatLocalDate(effectiveYesterday)) return 'Yesterday'
+
+                const effectiveTomorrow = new Date(effectiveTodayDate)
+                effectiveTomorrow.setDate(effectiveTomorrow.getDate() + 1)
+                if (selectedDateStr === formatLocalDate(effectiveTomorrow)) return 'Tomorrow'
+
                 return selectedDate.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
             case 'week':
                 const weekStart = new Date(selectedDate)
@@ -123,27 +139,28 @@ export function FilterBar({
         <div className="flex flex-col gap-4 mb-6 animate-fade-in">
             {/* Top Bar: Date Navigation & View Mode */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                {/* Left: Navigation arrows and date */}
-                <div className="flex items-center justify-between w-full md:w-auto md:justify-start gap-2">
+                {/* Left: Navigation arrows and date - fixed width container */}
+                <div className="flex items-center justify-between w-full md:w-auto md:justify-start gap-1">
                     <button
                         onClick={navigatePrev}
-                        className={`p-2 rounded-lg transition-all ${isDark ? 'hover:bg-white/10 text-white/60' : 'hover:bg-gray-100 text-gray-500'}`}
+                        className={`p-1.5 rounded-lg transition-all flex-shrink-0 ${isDark ? 'hover:bg-white/10 text-white/60' : 'hover:bg-gray-100 text-gray-500'}`}
                         title="Previous"
                     >
                         ←
                     </button>
 
-                    {/* Clickable date label with DatePicker */}
-                    <div className="relative">
+                    {/* Clickable date label with DatePicker - ALWAYS same fixed width and height */}
+                    <div className="relative flex-shrink-0 w-[90px] sm:w-[110px] h-9 flex items-center">
                         <button
                             onClick={() => setShowDatePicker(!showDatePicker)}
-                            className={`text-lg font-semibold min-w-[160px] text-center px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-2
+                            className={`w-full h-full font-semibold text-center px-1 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1 overflow-hidden
+                                ${isToday() ? 'text-sm sm:text-base' : 'text-[10px] sm:text-xs'}
                                 ${isDark
                                     ? 'text-white hover:bg-white/10'
                                     : 'text-gray-900 hover:bg-gray-100'}`}
                             title="Click to pick a date"
                         >
-                            📅 {getDateLabel()}
+                            <span className="truncate">📅 {getDateLabel()}</span>
                         </button>
 
                         {/* DatePicker Popup */}
@@ -169,20 +186,23 @@ export function FilterBar({
 
                     <button
                         onClick={navigateNext}
-                        className={`p-2 rounded-lg transition-all ${isDark ? 'hover:bg-white/10 text-white/60' : 'hover:bg-gray-100 text-gray-500'}`}
+                        className={`p-1.5 rounded-lg transition-all flex-shrink-0 ${isDark ? 'hover:bg-white/10 text-white/60' : 'hover:bg-gray-100 text-gray-500'}`}
                         title="Next"
                     >
                         →
                     </button>
-                    {/* Today Button - Hide on tiny screens, show on mobile */}
-                    {!isToday() && (
-                        <button
-                            onClick={goToToday}
-                            className={`hidden sm:block ml-2 px-3 py-1 text-sm rounded transition-all ${isDark ? 'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'}`}
-                        >
-                            ↩ Today
-                        </button>
-                    )}
+
+                    {/* Today Button - ALWAYS same width and height container, content visibility changes */}
+                    <div className="hidden sm:flex flex-shrink-0 w-[65px] h-9 items-center justify-center">
+                        {!isToday() && (
+                            <button
+                                onClick={goToToday}
+                                className={`h-full px-2 text-xs rounded transition-all whitespace-nowrap flex items-center ${isDark ? 'bg-orange-500/20 text-orange-300 hover:bg-orange-500/30' : 'bg-orange-100 text-orange-700 hover:bg-orange-200'}`}
+                            >
+                                ↩ Today
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Right: View Mode Buttons - Full width on mobile for easier tapping */}

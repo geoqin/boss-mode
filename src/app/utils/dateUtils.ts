@@ -53,3 +53,28 @@ export function formatLocalDateTime(date: Date): string {
     const seconds = String(date.getSeconds()).padStart(2, '0')
     return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
 }
+
+/**
+ * Returns the "effective" date considering the day start hour.
+ * If current time is before the day start hour, we're still on the previous day.
+ * 
+ * For example, with dayStartHour=6:
+ * - At 2am on Feb 8th, effective date is Feb 7th (still "yesterday")
+ * - At 7am on Feb 8th, effective date is Feb 8th (now "today")
+ * 
+ * @param dayStartHour Hour when the day "starts" (0-23), default 6am
+ */
+export function getEffectiveDate(dayStartHour: number = 6): string {
+    return getEffectiveDateFromDate(new Date(), dayStartHour)
+}
+
+/**
+ * Returns the "effective" date for a given Date, considering the day start hour.
+ */
+export function getEffectiveDateFromDate(date: Date, dayStartHour: number = 6): string {
+    const adjusted = new Date(date)
+    if (adjusted.getHours() < dayStartHour) {
+        adjusted.setDate(adjusted.getDate() - 1)
+    }
+    return formatLocalDate(adjusted)
+}

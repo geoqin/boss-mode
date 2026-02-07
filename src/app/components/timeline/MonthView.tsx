@@ -3,7 +3,7 @@
 import { Task, RecurringTaskCompletion } from "@/app/types"
 import { useMemo } from "react"
 import { isInstanceCompleted, getRecurringInstances } from "@/app/utils/taskUtils"
-import { formatLocalDate } from "@/app/utils/dateUtils"
+import { formatLocalDate, getEffectiveDate } from "@/app/utils/dateUtils"
 
 interface MonthViewProps {
     tasks: Task[]
@@ -17,6 +17,7 @@ interface MonthViewProps {
     onDateChange: (date: Date) => void
     onViewModeChange?: (mode: 'day' | 'week' | 'month') => void
     isDark: boolean
+    dayStartHour?: number
 }
 
 interface DayCell {
@@ -36,9 +37,10 @@ export function MonthView({
     selectedDate,
     onDateChange,
     onViewModeChange,
-    isDark
+    isDark,
+    dayStartHour = 6
 }: MonthViewProps) {
-    const today = formatLocalDate(new Date())
+    const today = getEffectiveDate(dayStartHour)
 
     // Generate calendar grid (6 weeks x 7 days)
     const calendarDays = useMemo(() => {

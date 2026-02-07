@@ -16,6 +16,7 @@ export default function AccountPage() {
     const [firstName, setFirstName] = useState("")
     const [lastName, setLastName] = useState("")
     const [theme, setTheme] = useState<'light' | 'dark'>('dark')
+    const [dayStartHour, setDayStartHour] = useState(6)
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [message, setMessage] = useState<string | null>(null)
@@ -43,6 +44,9 @@ export default function AccountPage() {
                 setFirstName(data.first_name || "")
                 setLastName(data.last_name || "")
                 if (data.theme) setTheme(data.theme)
+                if (data.day_start_hour !== null && data.day_start_hour !== undefined) {
+                    setDayStartHour(data.day_start_hour)
+                }
             }
             setIsLoading(false)
         }
@@ -267,6 +271,43 @@ export default function AccountPage() {
                         <h2 className={`text-xl font-semibold mb-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>Preferences</h2>
 
                         <div className="space-y-4">
+                            {/* Day Start Time */}
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <p className={`font-medium ${isDark ? 'text-white/80' : 'text-gray-700'}`}>
+                                        Day Start Time
+                                    </p>
+                                    <p className={`text-sm ${isDark ? 'text-white/40' : 'text-gray-500'}`}>
+                                        Tasks finished before this time count as the previous day
+                                    </p>
+                                </div>
+                                <select
+                                    value={dayStartHour}
+                                    onChange={async (e) => {
+                                        const newHour = parseInt(e.target.value)
+                                        setDayStartHour(newHour)
+                                        if (user) {
+                                            await supabase
+                                                .from('user_preferences')
+                                                .update({ day_start_hour: newHour })
+                                                .eq('user_id', user.id)
+                                        }
+                                    }}
+                                    className={`px-3 py-2 rounded-lg border ${inputClass} focus:outline-none transition-all`}
+                                >
+                                    {Array.from({ length: 24 }, (_, i) => {
+                                        const hour12 = i === 0 ? 12 : i > 12 ? i - 12 : i
+                                        const ampm = i < 12 ? 'am' : 'pm'
+                                        return (
+                                            <option key={i} value={i}>
+                                                {hour12}{ampm}
+                                            </option>
+                                        )
+                                    })}
+                                </select>
+                            </div>
+
+                            {/* Delete Confirmation */}
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className={`font-medium ${isDark ? 'text-white/80' : 'text-gray-700'}`}>

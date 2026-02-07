@@ -3,7 +3,7 @@
 import { Task, RecurringTaskCompletion } from "@/app/types"
 import { useMemo } from "react"
 import { isInstanceCompleted, getRecurringInstances } from "@/app/utils/taskUtils"
-import { formatLocalDate } from "@/app/utils/dateUtils"
+import { formatLocalDate, getEffectiveDate } from "@/app/utils/dateUtils"
 import { useDeleteConfirm } from "@/app/components/DeleteConfirmProvider"
 
 interface WeekViewProps {
@@ -20,6 +20,7 @@ interface WeekViewProps {
     onViewModeChange?: (mode: 'day' | 'week' | 'month') => void
     onHideRecurringChange?: (hide: boolean) => void
     isDark: boolean
+    dayStartHour?: number
 }
 
 interface WeekDay {
@@ -42,10 +43,11 @@ export function WeekView({
     onDateChange,
     onViewModeChange,
     onHideRecurringChange,
-    isDark
+    isDark,
+    dayStartHour = 6
 }: WeekViewProps) {
     const { confirmDelete } = useDeleteConfirm()
-    const today = formatLocalDate(new Date())
+    const today = getEffectiveDate(dayStartHour)
 
     // Get the week's days (Sunday to Saturday)
     const weekDays = useMemo(() => {
