@@ -555,6 +555,31 @@ export default function DashboardPage() {
     setChildTasks(prev => prev.filter(t => t.id !== childTaskId))
   }
 
+  const unparentTask = async (taskId: string) => {
+    const { error } = await supabase
+      .from('tasks')
+      .update({ parent_task_id: null, depth: 0 })
+      .eq('id', taskId)
+
+    if (!error) {
+      // Find the task in childTasks
+      const task = childTasks.find(t => t.id === taskId)
+      if (task) {
+        // Remove from child tasks list
+        setChildTasks(prev => prev.filter(t => t.id !== taskId))
+        // Add to root tasks list
+        setTasks(prev => [...prev, { ...task, parent_task_id: null, depth: 0 }])
+      }
+      // Close the modal
+      setEditingTask(null)
+      setEditingParentTask(null)
+      setEditingInstanceDate(null)
+      setTaskSubtasks([])
+      setTaskComments([])
+      setChildTasks([])
+    }
+  }
+
   // Comment handlers
   const addComment = async (taskId: string, content: string, instanceDate?: string | null) => {
     if (!user) return
@@ -999,6 +1024,7 @@ export default function DashboardPage() {
               onAddComment={addComment}
               onUpdateComment={updateComment}
               onDeleteComment={deleteComment}
+              onUnparentTask={unparentTask}
             />
           )
         }

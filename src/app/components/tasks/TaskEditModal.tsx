@@ -63,6 +63,7 @@ interface TaskEditModalProps {
     onAddTag?: (name: string, color?: string) => Promise<Tag | null>
     onAddTagToTask?: (taskId: string, tagId: string) => Promise<void>
     onRemoveTagFromTask?: (taskId: string, tagId: string) => Promise<void>
+    onUnparentTask?: (taskId: string) => Promise<void>
 }
 
 interface TabPanelProps {
@@ -107,6 +108,7 @@ export function TaskEditModal({
     onAddTag,
     onAddTagToTask,
     onRemoveTagFromTask,
+    onUnparentTask,
 }: TaskEditModalProps) {
     const { confirmDelete } = useDeleteConfirm()
 
@@ -712,19 +714,35 @@ export function TaskEditModal({
                     marginLeft: '0 !important'
                 }
             }}>
-                <Button
-                    onClick={() => {
-                        confirmDelete(task.title, () => {
-                            onDeleteTask(task.id)
-                            onClose()
-                        })
-                    }}
-                    color="error"
-                    variant="outlined"
-                    sx={{ width: { xs: '100%', sm: 'auto' } }}
-                >
-                    Delete
-                </Button>
+                <Box sx={{ display: 'flex', gap: 1, width: { xs: '100%', sm: 'auto' }, flexDirection: { xs: 'column', sm: 'row' } }}>
+                    <Button
+                        onClick={() => {
+                            confirmDelete(task.title, () => {
+                                onDeleteTask(task.id)
+                                onClose()
+                            })
+                        }}
+                        color="error"
+                        variant="outlined"
+                        sx={{ width: { xs: '100%', sm: 'auto' } }}
+                    >
+                        Delete
+                    </Button>
+                    {isSubtask && onUnparentTask && (
+                        <Button
+                            onClick={() => onUnparentTask(task.id)}
+                            variant="outlined"
+                            sx={{
+                                width: { xs: '100%', sm: 'auto' },
+                                borderColor: '#8b5cf6',
+                                color: '#8b5cf6',
+                                '&:hover': { borderColor: '#7c3aed', backgroundColor: 'rgba(139, 92, 246, 0.08)' }
+                            }}
+                        >
+                            Make Independent
+                        </Button>
+                    )}
+                </Box>
                 <Button
                     onClick={onClose}
                     color="inherit"
