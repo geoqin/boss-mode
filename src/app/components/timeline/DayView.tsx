@@ -79,6 +79,7 @@ export function DayView({
     // Rearrange mode state
     const [isRearrangeMode, setIsRearrangeMode] = useState(false)
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+    const [selectedTaskGroup, setSelectedTaskGroup] = useState<string | null>(null)
 
     // DnD sensors for pointer (mouse) and touch
     const pointerSensor = useSensor(PointerSensor, {
@@ -319,34 +320,53 @@ export function DayView({
         }
     }, [onReorderTasks, groupedTasks])
 
-    // Handle click-to-swap
+    // Handle click-to-swap or cross-group click-to-subtask
     const handleTaskClick = useCallback((taskId: string, groupKey: string) => {
         if (!isRearrangeMode) return
 
         if (!selectedTaskId) {
-            // First selection
+            // First selection - remember task and its group
             setSelectedTaskId(taskId)
+            setSelectedTaskGroup(groupKey)
         } else if (selectedTaskId === taskId) {
             // Same task - deselect
             setSelectedTaskId(null)
+            setSelectedTaskGroup(null)
         } else {
-            // Second selection - swap if in same group
-            const group = groupedTasks.find(g => g.key === groupKey)
-            if (group && group.tasks.some(t => t.task.id === selectedTaskId) && onReorderTasks) {
-                const taskIds = group.tasks.map(t => t.task.id)
-                const idx1 = taskIds.indexOf(selectedTaskId)
-                const idx2 = taskIds.indexOf(taskId)
-                if (idx1 !== -1 && idx2 !== -1) {
-                    // Swap positions
-                    const newOrder = [...taskIds]
-                    newOrder[idx1] = taskId
-                    newOrder[idx2] = selectedTaskId
-                    onReorderTasks(newOrder, groupKey)
+            // Second selection
+            const sameGroup = selectedTaskGroup === groupKey
+
+            if (sameGroup) {
+                // Same group - swap positions
+                const group = groupedTasks.find(g => g.key === groupKey)
+                if (group && group.tasks.some(t => t.task.id === selectedTaskId) && onReorderTasks) {
+                    const taskIds = group.tasks.map(t => t.task.id)
+                    const idx1 = taskIds.indexOf(selectedTaskId)
+                    const idx2 = taskIds.indexOf(taskId)
+                    if (idx1 !== -1 && idx2 !== -1) {
+                        const newOrder = [...taskIds]
+                        newOrder[idx1] = taskId
+                        newOrder[idx2] = selectedTaskId
+                        onReorderTasks(newOrder, groupKey)
+                    }
+                }
+            } else if (onMoveTaskToParent) {
+                // Cross-group click - check if valid direction for making subtask
+                // Valid: tasks → recurring, tasks → ongoing, recurring → ongoing
+                const groupPriority: Record<string, number> = { 'tasks': 0, 'recurring': 1, 'ongoing': 2 }
+                const selectedPriority = groupPriority[selectedTaskGroup || '']
+                const targetPriority = groupPriority[groupKey]
+
+                if (selectedPriority !== undefined && targetPriority !== undefined && selectedPriority < targetPriority) {
+                    // Valid direction - make the first selected task a child of the second clicked task
+                    onMoveTaskToParent(selectedTaskId, taskId)
                 }
             }
+
             setSelectedTaskId(null)
+            setSelectedTaskGroup(null)
         }
-    }, [isRearrangeMode, selectedTaskId, onReorderTasks, groupedTasks])
+    }, [isRearrangeMode, selectedTaskId, selectedTaskGroup, onReorderTasks, onMoveTaskToParent, groupedTasks])
 
     // Handle drag over another task (make subtask)
     const handleDragOver = useCallback((event: DragOverEvent) => {
@@ -471,6 +491,7 @@ export function DayView({
                         onClick={() => {
                             setIsRearrangeMode(!isRearrangeMode)
                             setSelectedTaskId(null)
+                            setSelectedTaskGroup(null)
                         }}
                         className={`text-sm px-3 py-1 rounded-full transition-all ${isRearrangeMode
                             ? 'bg-orange-500 text-white'

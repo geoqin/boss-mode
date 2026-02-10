@@ -556,14 +556,14 @@ export default function DashboardPage() {
   }
 
   const unparentTask = async (taskId: string) => {
+    const taskToPromote = editingTask?.id === taskId ? editingTask : childTasks.find(t => t.id === taskId)
+
     const { error } = await supabase
       .from('tasks')
       .update({ parent_task_id: null, depth: 0 })
       .eq('id', taskId)
 
     if (!error) {
-      // Use editingTask directly since childTasks is cleared when navigating into a child
-      const taskToPromote = editingTask?.id === taskId ? editingTask : childTasks.find(t => t.id === taskId)
       if (taskToPromote) {
         // Remove from child tasks list (if it's there)
         setChildTasks(prev => prev.filter(t => t.id !== taskId))
@@ -627,6 +627,29 @@ export default function DashboardPage() {
         c.id === commentId ? { ...c, content } : c
       ))
     }
+  }
+
+  // Move a root task to become a child of another task
+  const moveTaskToParent = async (childTaskId: string, parentTaskId: string): Promise<boolean> => {
+    const childTask = tasks.find(t => t.id === childTaskId)
+    const parentTask = tasks.find(t => t.id === parentTaskId)
+    if (!childTask || !parentTask) return false
+
+    // Check max depth
+    const parentDepth = parentTask.depth || 0
+    if (parentDepth >= 2) return false
+
+    const { error } = await supabase
+      .from('tasks')
+      .update({ parent_task_id: parentTaskId, depth: parentDepth + 1 })
+      .eq('id', childTaskId)
+
+    if (!error) {
+      // Remove from root tasks list
+      setTasks(prev => prev.filter(t => t.id !== childTaskId))
+      return true
+    }
+    return false
   }
 
   // Task reordering handler
@@ -967,6 +990,7 @@ export default function DashboardPage() {
                 onEdit={handleEditTask}
                 onHideRecurringChange={setHideRecurring}
                 onReorderTasks={reorderTasks}
+                onMoveTaskToParent={moveTaskToParent}
                 theme={theme}
                 dayStartHour={dayStartHour}
               />

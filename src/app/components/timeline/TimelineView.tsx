@@ -22,6 +22,7 @@ interface TimelineViewProps {
     onEdit: (task: Task, instanceDate?: string) => void
     onHideRecurringChange: (hide: boolean) => void
     onReorderTasks?: (taskIds: string[], groupKey: string) => void
+    onMoveTaskToParent?: (childTaskId: string, parentTaskId: string) => Promise<boolean>
     theme: 'light' | 'dark'
     dayStartHour?: number
 }
@@ -41,6 +42,7 @@ export function TimelineView({
     onEdit,
     onHideRecurringChange,
     onReorderTasks,
+    onMoveTaskToParent,
     theme,
     dayStartHour = 6
 }: TimelineViewProps) {
@@ -109,6 +111,7 @@ export function TimelineView({
         onViewModeChange,
         onHideRecurringChange,
         onReorderTasks,
+        onMoveTaskToParent,
         isDark,
         dayStartHour
     }
