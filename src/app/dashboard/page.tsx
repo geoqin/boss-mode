@@ -562,13 +562,13 @@ export default function DashboardPage() {
       .eq('id', taskId)
 
     if (!error) {
-      // Find the task in childTasks
-      const task = childTasks.find(t => t.id === taskId)
-      if (task) {
-        // Remove from child tasks list
+      // Use editingTask directly since childTasks is cleared when navigating into a child
+      const taskToPromote = editingTask?.id === taskId ? editingTask : childTasks.find(t => t.id === taskId)
+      if (taskToPromote) {
+        // Remove from child tasks list (if it's there)
         setChildTasks(prev => prev.filter(t => t.id !== taskId))
         // Add to root tasks list
-        setTasks(prev => [...prev, { ...task, parent_task_id: null, depth: 0 }])
+        setTasks(prev => [...prev, { ...taskToPromote, parent_task_id: null, depth: 0 }])
       }
       // Close the modal
       setEditingTask(null)
