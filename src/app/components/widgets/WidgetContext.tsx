@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 
-export type WidgetType = "weather" | "crypto" | "anime" | "focus"
+export type WidgetType = "weather" | "crypto" | "anime" | "focus" | "search"
 
 export interface WidgetConfig {
     id: string
@@ -28,6 +28,7 @@ export const WIDGET_META: Record<WidgetType, { label: string; emoji: string; des
     crypto: { label: "Crypto", emoji: "📈", description: "Live cryptocurrency prices" },
     anime: { label: "Anime Tracker", emoji: "🎌", description: "Track anime episode releases" },
     focus: { label: "Focus Task", emoji: "🎯", description: "Your most pressing task" },
+    search: { label: "Google Search", emoji: "🔍", description: "Quick web search" },
 }
 
 const DEFAULT_WIDGETS: WidgetConfig[] = [
