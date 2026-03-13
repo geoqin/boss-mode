@@ -17,6 +17,9 @@ import { useBossReminders } from "@/hooks/useBossReminders"
 import { isInstanceCompleted, getTasksForDate, getMissedTasks, getRecurringInstances } from "@/app/utils/taskUtils"
 import { getLocalTodayDate, formatLocalDateTime, getEffectiveDate } from "@/app/utils/dateUtils"
 import { ReminderManager } from "../components/ReminderManager"
+import { WidgetPanel } from "@/app/components/widgets"
+import { WidgetProvider } from "@/app/components/widgets/WidgetContext"
+import { WidgetRearrangeButton } from "@/app/components/widgets/WidgetRearrangeButton"
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -910,6 +913,7 @@ export default function DashboardPage() {
 
   return (
     <ErrorBoundary>
+      <WidgetProvider>
       <div className={containerClass}>
         {/* Decorative orbs */}
         {isDark && (
@@ -918,6 +922,24 @@ export default function DashboardPage() {
             <div className="fixed bottom-10 right-10 w-80 h-80 bg-white/5 rounded-full blur-3xl pointer-events-none" />
           </>
         )}
+
+        {/* Widget side panels - only visible on wide screens (≥1280px) */}
+        <WidgetPanel
+          side="left"
+          isDark={isDark}
+          tasks={todaysTasks.map(t => ({ ...t, completed: getTaskCompletedForToday(t) }))}
+          recurringCompletions={recurringCompletions}
+          onToggleTask={toggleTask}
+          dayStartHour={dayStartHour}
+        />
+        <WidgetPanel
+          side="right"
+          isDark={isDark}
+          tasks={todaysTasks.map(t => ({ ...t, completed: getTaskCompletedForToday(t) }))}
+          recurringCompletions={recurringCompletions}
+          onToggleTask={toggleTask}
+          dayStartHour={dayStartHour}
+        />
 
         <main className="relative z-10 max-w-xl mx-auto px-6 py-2">
           {/* Pass currentTasks to DashboardHeader so BossFace ignores history tasks */}
@@ -1074,7 +1096,11 @@ export default function DashboardPage() {
             onSnooze={snooze}
           />
         )}
+
+        {/* Floating widget rearrange button */}
+        <WidgetRearrangeButton isDark={isDark} />
       </div>
+      </WidgetProvider>
     </ErrorBoundary>
   )
 }
