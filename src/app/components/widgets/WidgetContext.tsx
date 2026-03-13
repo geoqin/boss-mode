@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from "react"
 import {
     DndContext,
     closestCenter,
@@ -13,6 +13,7 @@ import {
     DragStartEvent,
 } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
+import { createClient } from "@/lib/supabase/client"
 
 export type WidgetType = "weather" | "crypto" | "anime" | "focus" | "search"
 
@@ -23,6 +24,14 @@ export interface WidgetConfig {
     order: number
 }
 
+// Additional specific preferences types
+export interface SavedLocation {
+    name: string
+    lat: number
+    lon: number
+}
+
+// Base Context State
 export const WIDGET_META: Record<WidgetType, { label: string; emoji: string; description: string }> = {
     weather: { label: "Weather", emoji: "🌤️", description: "Current conditions & forecast" },
     crypto: { label: "Crypto", emoji: "📈", description: "Live cryptocurrency prices" },
@@ -38,8 +47,6 @@ const DEFAULT_WIDGETS: WidgetConfig[] = [
     { id: "anime-1", type: "anime", panel: "right", order: 1 },
 ]
 
-const STORAGE_KEY = "boss-mode-widget-config"
-
 interface WidgetContextType {
     widgets: WidgetConfig[]
     isRearrangeMode: boolean
@@ -49,6 +56,14 @@ interface WidgetContextType {
     getWidgetsForPanel: (panel: "left" | "right") => WidgetConfig[]
     loaded: boolean
     activeId: string | null
+
+    // Specific Widget States syncing to DB
+    weatherLocation: SavedLocation | null
+    setWeatherLocation: (loc: SavedLocation) => void
+    cryptoCoins: string[]
+    setCryptoCoins: (coins: string[]) => void
+    animeTracked: any[] // Kept generic as we haven't touched anime deeply yet
+    setAnimeTracked: (anime: any[]) => void
 }
 
 const WidgetContext = createContext<WidgetContextType | null>(null)
@@ -60,46 +75,110 @@ export function useWidgets() {
 }
 
 export function WidgetProvider({ children }: { children: ReactNode }) {
-    const [widgets, setWidgets] = useState<WidgetConfig[]>([])
+    const supabase = createClient()
+    const [userId, setUserId] = useState<string | null>(null)
     const [loaded, setLoaded] = useState(false)
+
+    // Layout State
+    const [widgets, setWidgets] = useState<WidgetConfig[]>([])
     const [isRearrangeMode, setIsRearrangeMode] = useState(false)
     const [activeId, setActiveId] = useState<string | null>(null)
 
+    // Specific Widget States
+    const [weatherLocation, setWeatherLocationState] = useState<SavedLocation | null>(null)
+    const [cryptoCoins, setCryptoCoinsState] = useState<string[]>(["bitcoin", "ethereum", "solana"])
+    const [animeTracked, setAnimeTrackedState] = useState<any[]>([])
+
+    // Debounce timer for DB sync
+    const syncTimerRef = useRef<NodeJS.Timeout | null>(null)
+
     // DnD sensors
-    const pointerSensor = useSensor(PointerSensor, {
-        activationConstraint: { distance: 8 }
-    })
-    const touchSensor = useSensor(TouchSensor, {
-        activationConstraint: { delay: 200, tolerance: 5 }
-    })
+    const pointerSensor = useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    const touchSensor = useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
     const sensors = useSensors(pointerSensor, touchSensor)
 
-    // Load from localStorage
+    // 1. Initial Load from Supabase
     useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY)
-        if (saved) {
-            try {
-                setWidgets(JSON.parse(saved))
-            } catch {
+        async function loadPreferences() {
+            const { data: { user } } = await supabase.auth.getUser()
+            if (!user) {
                 setWidgets(DEFAULT_WIDGETS)
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_WIDGETS))
+                setLoaded(true)
+                return
             }
-        } else {
-            setWidgets(DEFAULT_WIDGETS)
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_WIDGETS))
-        }
-        setLoaded(true)
-    }, [])
 
+            setUserId(user.id)
+            const { data, error } = await supabase
+                .from('user_preferences')
+                .select('*')
+                .eq('user_id', user.id)
+                .single()
+
+            if (data) {
+                setWidgets(data.widget_layout?.length ? data.widget_layout : DEFAULT_WIDGETS)
+                if (data.weather_location) setWeatherLocationState(data.weather_location)
+                if (data.crypto_coins?.length) setCryptoCoinsState(data.crypto_coins)
+                if (data.anime_tracked?.length) setAnimeTrackedState(data.anime_tracked)
+            } else {
+                setWidgets(DEFAULT_WIDGETS)
+                // If no row exists, we insert a default row later upon first save
+            }
+            setLoaded(true)
+        }
+        loadPreferences()
+    }, [supabase])
+
+    // 2. Debounced Sync to Supabase
+    const syncToDatabase = useCallback((
+        newWidgets: WidgetConfig[],
+        newWeather: SavedLocation | null,
+        newCrypto: string[],
+        newAnime: any[]
+    ) => {
+        if (!userId) return
+
+        if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
+        syncTimerRef.current = setTimeout(async () => {
+            const updates = {
+                user_id: userId,
+                widget_layout: newWidgets,
+                weather_location: newWeather,
+                crypto_coins: newCrypto,
+                anime_tracked: newAnime
+            }
+
+            const { error } = await supabase
+                .from('user_preferences')
+                .upsert(updates)
+
+            if (error) console.error("Failed to sync widget preferences:", error)
+        }, 1000) // 1 second debounce
+    }, [userId, supabase])
+
+    // State updaters that also trigger sync
     const saveWidgets = useCallback((updated: WidgetConfig[]) => {
         setWidgets(updated)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-    }, [])
+        syncToDatabase(updated, weatherLocation, cryptoCoins, animeTracked)
+    }, [weatherLocation, cryptoCoins, animeTracked, syncToDatabase])
 
+    const setWeatherLocation = useCallback((loc: SavedLocation) => {
+        setWeatherLocationState(loc)
+        syncToDatabase(widgets, loc, cryptoCoins, animeTracked)
+    }, [widgets, cryptoCoins, animeTracked, syncToDatabase])
+
+    const setCryptoCoins = useCallback((coins: string[]) => {
+        setCryptoCoinsState(coins)
+        syncToDatabase(widgets, weatherLocation, coins, animeTracked)
+    }, [widgets, weatherLocation, animeTracked, syncToDatabase])
+
+    const setAnimeTracked = useCallback((anime: any[]) => {
+        setAnimeTrackedState(anime)
+        syncToDatabase(widgets, weatherLocation, cryptoCoins, anime)
+    }, [widgets, weatherLocation, cryptoCoins, syncToDatabase])
+
+    // Layout Actions
     const getWidgetsForPanel = useCallback((panel: "left" | "right") => {
-        return widgets
-            .filter((w) => w.panel === panel)
-            .sort((a, b) => a.order - b.order)
+        return widgets.filter((w) => w.panel === panel).sort((a, b) => a.order - b.order)
     }, [widgets])
 
     const addWidget = useCallback((type: WidgetType, panel: "left" | "right") => {
@@ -114,18 +193,14 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
         saveWidgets(widgets.filter(w => w.id !== id))
     }, [widgets, saveWidgets])
 
-    const toggleRearrangeMode = useCallback(() => {
-        setIsRearrangeMode(prev => !prev)
-    }, [])
+    const toggleRearrangeMode = useCallback(() => setIsRearrangeMode(prev => !prev), [])
 
-    // Determine which panel a widget ID belongs to
     const getPanelForWidget = useCallback((widgetId: string) => {
         return widgets.find(w => w.id === widgetId)?.panel
     }, [widgets])
 
-    const handleDragStart = useCallback((event: DragStartEvent) => {
-        setActiveId(event.active.id as string)
-    }, [])
+    // Drag handling
+    const handleDragStart = useCallback((event: DragStartEvent) => setActiveId(event.active.id as string), [])
 
     const handleDragOver = useCallback((event: DragOverEvent) => {
         const { active, over } = event
@@ -135,29 +210,17 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
         const overId = over.id as string
 
         const activePanel = getPanelForWidget(activeId)
-        // overId can be a widget id OR a panel droppable id ("left-panel" or "right-panel")
         let overPanel: "left" | "right" | undefined
-        if (overId === "left-panel") {
-            overPanel = "left"
-        } else if (overId === "right-panel") {
-            overPanel = "right"
-        } else {
-            overPanel = getPanelForWidget(overId)
-        }
+        if (overId === "left-panel") overPanel = "left"
+        else if (overId === "right-panel") overPanel = "right"
+        else overPanel = getPanelForWidget(overId)
 
         if (!activePanel || !overPanel || activePanel === overPanel) return
 
-        // Widget is being dragged to the other panel — move it there
         setWidgets(prev => {
             const targetPanelWidgets = prev.filter(w => w.panel === overPanel && w.id !== activeId)
             const maxOrder = Math.max(-1, ...targetPanelWidgets.map(w => w.order))
-
-            return prev.map(w => {
-                if (w.id === activeId) {
-                    return { ...w, panel: overPanel!, order: maxOrder + 1 }
-                }
-                return w
-            })
+            return prev.map(w => w.id === activeId ? { ...w, panel: overPanel!, order: maxOrder + 1 } : w)
         })
     }, [getPanelForWidget])
 
@@ -165,29 +228,23 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
         setActiveId(null)
         const { active, over } = event
         if (!over || active.id === over.id) {
-            // Still save to persist any cross-panel moves that happened during dragOver
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(widgets))
+            syncToDatabase(widgets, weatherLocation, cryptoCoins, animeTracked)
             return
         }
 
         const activeId = active.id as string
         const overId = over.id as string
 
-        // If dropping onto a panel droppable (not another widget), just persist
         if (overId === "left-panel" || overId === "right-panel") {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(widgets))
+            syncToDatabase(widgets, weatherLocation, cryptoCoins, animeTracked)
             return
         }
 
         const activePanel = getPanelForWidget(activeId)
         const overPanel = getPanelForWidget(overId)
 
-        // Reorder within the same panel
         if (activePanel && overPanel && activePanel === overPanel) {
-            const panelWidgets = widgets
-                .filter(w => w.panel === activePanel)
-                .sort((a, b) => a.order - b.order)
-
+            const panelWidgets = widgets.filter(w => w.panel === activePanel).sort((a, b) => a.order - b.order)
             const oldIndex = panelWidgets.findIndex(w => w.id === activeId)
             const newIndex = panelWidgets.findIndex(w => w.id === overId)
 
@@ -195,30 +252,23 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
                 const reordered = arrayMove(panelWidgets, oldIndex, newIndex)
                 const updated = widgets.map(w => {
                     const reorderedIdx = reordered.findIndex(r => r.id === w.id)
-                    if (reorderedIdx >= 0) {
-                        return { ...w, order: reorderedIdx }
-                    }
-                    return w
+                    return reorderedIdx >= 0 ? { ...w, order: reorderedIdx } : w
                 })
                 saveWidgets(updated)
                 return
             }
         }
-
-        // Persist any state from cross-panel moves
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(widgets))
-    }, [widgets, getPanelForWidget, saveWidgets])
+        syncToDatabase(widgets, weatherLocation, cryptoCoins, animeTracked)
+    }, [widgets, getPanelForWidget, saveWidgets, syncToDatabase, weatherLocation, cryptoCoins, animeTracked])
 
     return (
         <WidgetContext.Provider value={{
-            widgets,
-            isRearrangeMode,
-            toggleRearrangeMode,
-            addWidget,
-            removeWidget,
-            getWidgetsForPanel,
-            loaded,
-            activeId,
+            widgets, isRearrangeMode, toggleRearrangeMode,
+            addWidget, removeWidget, getWidgetsForPanel,
+            loaded, activeId,
+            weatherLocation, setWeatherLocation,
+            cryptoCoins, setCryptoCoins,
+            animeTracked, setAnimeTracked
         }}>
             <DndContext
                 sensors={sensors}

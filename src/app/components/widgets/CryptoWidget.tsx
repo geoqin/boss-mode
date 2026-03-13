@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useWidgets } from "./WidgetContext"
 
 interface CoinData {
     id: string
@@ -15,8 +16,6 @@ interface CoinData {
 interface CryptoWidgetProps {
     isDark: boolean
 }
-
-const DEFAULT_COINS = ["bitcoin", "ethereum", "solana"]
 
 function formatPrice(price: number): string {
     if (price >= 1000) return `$${price.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
@@ -33,8 +32,8 @@ function formatMarketCap(mc: number): string {
 }
 
 export function CryptoWidget({ isDark }: CryptoWidgetProps) {
+    const { cryptoCoins: trackedIds, setCryptoCoins: setTrackedIds } = useWidgets()
     const [coins, setCoins] = useState<CoinData[]>([])
-    const [trackedIds, setTrackedIds] = useState<string[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState("")
@@ -42,20 +41,6 @@ export function CryptoWidget({ isDark }: CryptoWidgetProps) {
     const [searchResults, setSearchResults] = useState<{ id: string; name: string; symbol: string }[]>([])
     const [searchLoading, setSearchLoading] = useState(false)
     const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
-
-    // Load tracked coins from localStorage
-    useEffect(() => {
-        const saved = localStorage.getItem("boss-mode-crypto-tracked")
-        if (saved) {
-            try {
-                setTrackedIds(JSON.parse(saved))
-            } catch {
-                setTrackedIds(DEFAULT_COINS)
-            }
-        } else {
-            setTrackedIds(DEFAULT_COINS)
-        }
-    }, [])
 
     const fetchPrices = useCallback(async () => {
         if (trackedIds.length === 0) {
@@ -114,9 +99,7 @@ export function CryptoWidget({ isDark }: CryptoWidgetProps) {
 
     const addCoin = (id: string) => {
         if (!trackedIds.includes(id)) {
-            const updated = [...trackedIds, id]
-            setTrackedIds(updated)
-            localStorage.setItem("boss-mode-crypto-tracked", JSON.stringify(updated))
+            setTrackedIds([...trackedIds, id])
         }
         setShowSearch(false)
         setSearchQuery("")
@@ -124,9 +107,7 @@ export function CryptoWidget({ isDark }: CryptoWidgetProps) {
     }
 
     const removeCoin = (id: string) => {
-        const updated = trackedIds.filter((t) => t !== id)
-        setTrackedIds(updated)
-        localStorage.setItem("boss-mode-crypto-tracked", JSON.stringify(updated))
+        setTrackedIds(trackedIds.filter((t) => t !== id))
     }
 
     const textMuted = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.45)"

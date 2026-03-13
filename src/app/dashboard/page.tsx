@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation"
 import { useNotifications } from "@/hooks/useNotifications"
 import { useBossReminders } from "@/hooks/useBossReminders"
 import { isInstanceCompleted, getTasksForDate, getMissedTasks, getRecurringInstances } from "@/app/utils/taskUtils"
-import { getLocalTodayDate, formatLocalDateTime, getEffectiveDate } from "@/app/utils/dateUtils"
+import { getLocalTodayDate, formatLocalDateTime, getEffectiveDate, parseLocalYMD } from "@/app/utils/dateUtils"
 import { ReminderManager } from "../components/ReminderManager"
 import { WidgetPanel } from "@/app/components/widgets"
 import { WidgetProvider } from "@/app/components/widgets/WidgetContext"
@@ -53,9 +53,9 @@ export default function DashboardPage() {
 
   // Set client-side date to avoid hydration mismatch
   useEffect(() => {
-    setSelectedDate(new Date())
+    setSelectedDate(parseLocalYMD(getEffectiveDate(dayStartHour)))
     setIsClient(true)
-  }, [])
+  }, [dayStartHour])
 
   const { user, signOut, loading: authLoading } = useAuth()
   const supabase = useState(() => createClient())[0]

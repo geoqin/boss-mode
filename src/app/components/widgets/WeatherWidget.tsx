@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useWidgets, SavedLocation } from "./WidgetContext"
 
 interface WeatherData {
     temperature: number
@@ -14,19 +15,20 @@ interface WeatherData {
     forecast: { date: string; high: number; low: number; code: number }[]
 }
 
-interface SavedLocation {
-    name: string
-    lat: number
-    lon: number
-}
-
 interface GeoResult {
-    id: number
+    place_id: number
     name: string
-    admin1?: string
-    country: string
-    latitude: number
-    longitude: number
+    display_name: string
+    lat: string
+    lon: string
+    address?: {
+        suburb?: string
+        city?: string
+        town?: string
+        village?: string
+        state?: string
+        country?: string
+    }
 }
 
 interface WeatherWidgetProps {
@@ -81,6 +83,7 @@ function getDayName(dateStr: string) {
 }
 
 export function WeatherWidget({ isDark }: WeatherWidgetProps) {
+    const { weatherLocation: savedLocation, setWeatherLocation } = useWidgets()
     const [weather, setWeather] = useState<WeatherData | null>(null)
     const [loading, setLoading] = useState(true)
     const [locationName, setLocationName] = useState("")
@@ -89,7 +92,7 @@ export function WeatherWidget({ isDark }: WeatherWidgetProps) {
     const [searchQuery, setSearchQuery] = useState("")
     const [searchResults, setSearchResults] = useState<GeoResult[]>([])
     const [searchLoading, setSearchLoading] = useState(false)
-    const [savedLocation, setSavedLocation] = useState<SavedLocation | null>(null)
+
     const searchInputRef = useRef<HTMLInputElement>(null)
     const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -124,17 +127,12 @@ export function WeatherWidget({ isDark }: WeatherWidgetProps) {
         }
     }, [])
 
-    // Load saved location or use geolocation
+    // Load weather based on context location or geolocation
     useEffect(() => {
-        const saved = localStorage.getItem(LOCATION_STORAGE_KEY)
-        if (saved) {
-            try {
-                const loc: SavedLocation = JSON.parse(saved)
-                setSavedLocation(loc)
-                setLocationName(`📍 ${loc.name}`)
-                fetchWeather(loc.lat, loc.lon)
-                return
-            } catch { /* fall through */ }
+        if (savedLocation) {
+            setLocationName(`📍 ${savedLocation.name}`)
+            fetchWeather(savedLocation.lat, savedLocation.lon)
+            return
         }
 
         // No saved location — try geolocation, fallback to Sydney
@@ -154,7 +152,7 @@ export function WeatherWidget({ isDark }: WeatherWidgetProps) {
             setLocationName("📍 Sydney, AU")
             fetchWeather(-33.8688, 151.2093)
         }
-    }, [fetchWeather])
+    }, [fetchWeather, savedLocation])
 
     // Auto-refresh every 30 minutes
     useEffect(() => {
@@ -185,11 +183,9 @@ export function WeatherWidget({ isDark }: WeatherWidgetProps) {
         searchTimerRef.current = setTimeout(async () => {
             setSearchLoading(true)
             try {
-                const res = await fetch(
-                    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=8&language=en&format=json`
-                )
+                const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`)
                 const data = await res.json()
-                setSearchResults(data.results || [])
+                setSearchResults(data || [])
             } catch {
                 setSearchResults([])
             } finally {
@@ -199,14 +195,24 @@ export function WeatherWidget({ isDark }: WeatherWidgetProps) {
     }
 
     const selectLocation = (result: GeoResult) => {
-        const name = result.admin1
-            ? `${result.name}, ${result.admin1}, ${result.country}`
-            : `${result.name}, ${result.country}`
+        let shortName = result.name
 
-        const loc: SavedLocation = { name, lat: result.latitude, lon: result.longitude }
-        setSavedLocation(loc)
-        setLocationName(`📍 ${name}`)
-        localStorage.setItem(LOCATION_STORAGE_KEY, JSON.stringify(loc))
+        if (result.address) {
+            const addr = result.address
+            const locality = addr.suburb || addr.city || addr.town || addr.village || result.name
+            const region = addr.state || addr.country || ""
+            shortName = region ? `${locality}, ${region}` : locality
+        } else {
+            // Fallback for no address details
+            const parts = result.display_name.split(",").map((p: string) => p.trim())
+            shortName = parts.length > 3 
+                ? `${parts[0]}, ${parts[parts.length - 2]}, ${parts[parts.length - 1]}`
+                : result.display_name
+        }
+
+        const loc: SavedLocation = { name: shortName, lat: parseFloat(result.lat), lon: parseFloat(result.lon) }
+        setWeatherLocation(loc)
+        setLocationName(`📍 ${shortName}`)
 
         // Close search and fetch new weather
         setShowSearch(false)
@@ -302,7 +308,7 @@ export function WeatherWidget({ isDark }: WeatherWidgetProps) {
                         <div style={{ maxHeight: 180, overflowY: "auto" }}>
                             {searchResults.map((r) => (
                                 <button
-                                    key={r.id}
+                                    key={r.place_id}
                                     onClick={() => selectLocation(r)}
                                     style={{
                                         display: "block", width: "100%", textAlign: "left",
@@ -314,9 +320,9 @@ export function WeatherWidget({ isDark }: WeatherWidgetProps) {
                                     onMouseOver={(e) => (e.currentTarget.style.background = isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)")}
                                     onMouseOut={(e) => (e.currentTarget.style.background = "none")}
                                 >
-                                    <div style={{ fontWeight: 600 }}>{r.name}</div>
-                                    <div style={{ fontSize: 11, color: textMuted }}>
-                                        {[r.admin1, r.country].filter(Boolean).join(", ")}
+                                    <div style={{ fontWeight: 600 }}>{r.address?.suburb || r.address?.city || r.address?.town || r.name}</div>
+                                    <div style={{ fontSize: 11, color: textMuted, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                        {[r.address?.state, r.address?.country].filter(Boolean).join(", ") || r.display_name}
                                     </div>
                                 </button>
                             ))}

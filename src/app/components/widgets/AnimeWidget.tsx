@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useWidgets } from "./WidgetContext"
 
 interface AnimeShow {
     malId: number
@@ -18,27 +19,13 @@ interface AnimeWidgetProps {
 }
 
 export function AnimeWidget({ isDark }: AnimeWidgetProps) {
-    const [followedIds, setFollowedIds] = useState<number[]>([])
+    const { animeTracked: followedIds, setAnimeTracked: setFollowedIds } = useWidgets()
     const [shows, setShows] = useState<AnimeShow[]>([])
     const [loading, setLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [searchResults, setSearchResults] = useState<AnimeShow[]>([])
     const [showSearch, setShowSearch] = useState(false)
     const [searchLoading, setSearchLoading] = useState(false)
-
-    // Load followed anime from localStorage
-    useEffect(() => {
-        const saved = localStorage.getItem("boss-mode-anime-followed")
-        if (saved) {
-            try {
-                setFollowedIds(JSON.parse(saved))
-            } catch {
-                setFollowedIds([])
-            }
-        } else {
-            setFollowedIds([])
-        }
-    }, [])
 
     // Fetch details for followed anime
     useEffect(() => {
@@ -116,9 +103,7 @@ export function AnimeWidget({ isDark }: AnimeWidgetProps) {
 
     const followAnime = (malId: number) => {
         if (!followedIds.includes(malId)) {
-            const updated = [...followedIds, malId]
-            setFollowedIds(updated)
-            localStorage.setItem("boss-mode-anime-followed", JSON.stringify(updated))
+            setFollowedIds([...followedIds, malId])
         }
         setShowSearch(false)
         setSearchQuery("")
@@ -126,9 +111,7 @@ export function AnimeWidget({ isDark }: AnimeWidgetProps) {
     }
 
     const unfollowAnime = (malId: number) => {
-        const updated = followedIds.filter((id) => id !== malId)
-        setFollowedIds(updated)
-        localStorage.setItem("boss-mode-anime-followed", JSON.stringify(updated))
+        setFollowedIds(followedIds.filter((id) => id !== malId))
         setShows((prev) => prev.filter((s) => s.malId !== malId))
     }
 
