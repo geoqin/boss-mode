@@ -62,8 +62,8 @@ interface WidgetContextType {
     setWeatherLocation: (loc: SavedLocation) => void
     cryptoCoins: string[]
     setCryptoCoins: (coins: string[]) => void
-    animeTracked: any[] // Kept generic as we haven't touched anime deeply yet
-    setAnimeTracked: (anime: any[]) => void
+    animeTracked: number[]
+    setAnimeTracked: (anime: number[]) => void
 }
 
 const WidgetContext = createContext<WidgetContextType | null>(null)
@@ -87,7 +87,19 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
     // Specific Widget States
     const [weatherLocation, setWeatherLocationState] = useState<SavedLocation | null>(null)
     const [cryptoCoins, setCryptoCoinsState] = useState<string[]>(["bitcoin", "ethereum", "solana"])
-    const [animeTracked, setAnimeTrackedState] = useState<any[]>([])
+    const [animeTracked, setAnimeTrackedState] = useState<number[]>([])
+
+    // Use refs to always have the latest state available for syncing
+    const widgetsRef = useRef(widgets)
+    const weatherRef = useRef(weatherLocation)
+    const cryptoRef = useRef(cryptoCoins)
+    const animeRef = useRef(animeTracked)
+
+    // Keep refs in sync with state
+    useEffect(() => { widgetsRef.current = widgets }, [widgets])
+    useEffect(() => { weatherRef.current = weatherLocation }, [weatherLocation])
+    useEffect(() => { cryptoRef.current = cryptoCoins }, [cryptoCoins])
+    useEffect(() => { animeRef.current = animeTracked }, [animeTracked])
 
     // Debounce timer for DB sync
     const syncTimerRef = useRef<NodeJS.Timeout | null>(null)
@@ -110,46 +122,40 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
             setUserId(user.id)
             const { data, error } = await supabase
                 .from('user_preferences')
-                .select('*')
+                .select('widget_layout, weather_location, crypto_coins, anime_tracked')
                 .eq('user_id', user.id)
                 .single()
 
             if (data) {
-                setWidgets(data.widget_layout?.length ? data.widget_layout : DEFAULT_WIDGETS)
+                if (data.widget_layout?.length) setWidgets(data.widget_layout)
+                else setWidgets(DEFAULT_WIDGETS)
+
                 if (data.weather_location) setWeatherLocationState(data.weather_location)
                 if (data.crypto_coins?.length) setCryptoCoinsState(data.crypto_coins)
                 if (data.anime_tracked?.length) setAnimeTrackedState(data.anime_tracked)
             } else {
                 setWidgets(DEFAULT_WIDGETS)
-                // If no row exists, we insert a default row later upon first save
             }
             setLoaded(true)
         }
         loadPreferences()
     }, [supabase])
 
-    // 2. Debounced Sync to Supabase
-    const syncToDatabase = useCallback((
-        newWidgets: WidgetConfig[],
-        newWeather: SavedLocation | null,
-        newCrypto: string[],
-        newAnime: any[]
-    ) => {
+    // 2. Debounced Sync to Supabase — always reads latest state from refs
+    const scheduleSyncToDatabase = useCallback(() => {
         if (!userId) return
 
         if (syncTimerRef.current) clearTimeout(syncTimerRef.current)
         syncTimerRef.current = setTimeout(async () => {
-            const updates = {
-                user_id: userId,
-                widget_layout: newWidgets,
-                weather_location: newWeather,
-                crypto_coins: newCrypto,
-                anime_tracked: newAnime
-            }
-
             const { error } = await supabase
                 .from('user_preferences')
-                .upsert(updates)
+                .update({
+                    widget_layout: widgetsRef.current,
+                    weather_location: weatherRef.current,
+                    crypto_coins: cryptoRef.current,
+                    anime_tracked: animeRef.current
+                })
+                .eq('user_id', userId)
 
             if (error) console.error("Failed to sync widget preferences:", error)
         }, 1000) // 1 second debounce
@@ -158,23 +164,27 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
     // State updaters that also trigger sync
     const saveWidgets = useCallback((updated: WidgetConfig[]) => {
         setWidgets(updated)
-        syncToDatabase(updated, weatherLocation, cryptoCoins, animeTracked)
-    }, [weatherLocation, cryptoCoins, animeTracked, syncToDatabase])
+        widgetsRef.current = updated
+        scheduleSyncToDatabase()
+    }, [scheduleSyncToDatabase])
 
     const setWeatherLocation = useCallback((loc: SavedLocation) => {
         setWeatherLocationState(loc)
-        syncToDatabase(widgets, loc, cryptoCoins, animeTracked)
-    }, [widgets, cryptoCoins, animeTracked, syncToDatabase])
+        weatherRef.current = loc
+        scheduleSyncToDatabase()
+    }, [scheduleSyncToDatabase])
 
     const setCryptoCoins = useCallback((coins: string[]) => {
         setCryptoCoinsState(coins)
-        syncToDatabase(widgets, weatherLocation, coins, animeTracked)
-    }, [widgets, weatherLocation, animeTracked, syncToDatabase])
+        cryptoRef.current = coins
+        scheduleSyncToDatabase()
+    }, [scheduleSyncToDatabase])
 
-    const setAnimeTracked = useCallback((anime: any[]) => {
+    const setAnimeTracked = useCallback((anime: number[]) => {
         setAnimeTrackedState(anime)
-        syncToDatabase(widgets, weatherLocation, cryptoCoins, anime)
-    }, [widgets, weatherLocation, cryptoCoins, syncToDatabase])
+        animeRef.current = anime
+        scheduleSyncToDatabase()
+    }, [scheduleSyncToDatabase])
 
     // Layout Actions
     const getWidgetsForPanel = useCallback((panel: "left" | "right") => {
@@ -228,7 +238,7 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
         setActiveId(null)
         const { active, over } = event
         if (!over || active.id === over.id) {
-            syncToDatabase(widgets, weatherLocation, cryptoCoins, animeTracked)
+            scheduleSyncToDatabase()
             return
         }
 
@@ -236,7 +246,7 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
         const overId = over.id as string
 
         if (overId === "left-panel" || overId === "right-panel") {
-            syncToDatabase(widgets, weatherLocation, cryptoCoins, animeTracked)
+            scheduleSyncToDatabase()
             return
         }
 
@@ -258,8 +268,8 @@ export function WidgetProvider({ children }: { children: ReactNode }) {
                 return
             }
         }
-        syncToDatabase(widgets, weatherLocation, cryptoCoins, animeTracked)
-    }, [widgets, getPanelForWidget, saveWidgets, syncToDatabase, weatherLocation, cryptoCoins, animeTracked])
+        scheduleSyncToDatabase()
+    }, [widgets, getPanelForWidget, saveWidgets, scheduleSyncToDatabase])
 
     return (
         <WidgetContext.Provider value={{
