@@ -26,6 +26,7 @@ export function AnimeWidget({ isDark }: AnimeWidgetProps) {
     const [searchResults, setSearchResults] = useState<AnimeShow[]>([])
     const [showSearch, setShowSearch] = useState(false)
     const [searchLoading, setSearchLoading] = useState(false)
+    const [hoveredId, setHoveredId] = useState<number | null>(null)
 
     // Fetch details for followed anime
     useEffect(() => {
@@ -214,6 +215,8 @@ export function AnimeWidget({ isDark }: AnimeWidgetProps) {
                         return (
                             <div
                                 key={show.malId}
+                                onMouseEnter={() => setHoveredId(show.malId)}
+                                onMouseLeave={() => setHoveredId(null)}
                                 style={{
                                     display: "flex", gap: 8, alignItems: "center",
                                     padding: "6px 4px", borderRadius: 8,
@@ -247,8 +250,10 @@ export function AnimeWidget({ isDark }: AnimeWidgetProps) {
                                     onClick={() => unfollowAnime(show.malId)}
                                     style={{
                                         background: "none", border: "none", cursor: "pointer",
-                                        fontSize: 10, color: textMuted, padding: "4px", opacity: 0.4,
-                                        flexShrink: 0,
+                                        fontSize: 12, color: "#ef4444", padding: "4px 6px",
+                                        flexShrink: 0, borderRadius: 4,
+                                        opacity: hoveredId === show.malId ? 1 : 0,
+                                        transition: "opacity 0.15s",
                                     }}
                                     title="Unfollow"
                                 >

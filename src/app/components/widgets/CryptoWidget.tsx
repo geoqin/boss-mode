@@ -40,6 +40,7 @@ export function CryptoWidget({ isDark }: CryptoWidgetProps) {
     const [showSearch, setShowSearch] = useState(false)
     const [searchResults, setSearchResults] = useState<{ id: string; name: string; symbol: string }[]>([])
     const [searchLoading, setSearchLoading] = useState(false)
+    const [hoveredId, setHoveredId] = useState<string | null>(null)
     const searchTimerRef = useRef<NodeJS.Timeout | null>(null)
 
     const fetchPrices = useCallback(async () => {
@@ -190,6 +191,8 @@ export function CryptoWidget({ isDark }: CryptoWidgetProps) {
                     {coins.map((coin) => (
                         <div
                             key={coin.id}
+                            onMouseEnter={() => setHoveredId(coin.id)}
+                            onMouseLeave={() => setHoveredId(null)}
                             style={{
                                 display: "flex", justifyContent: "space-between", alignItems: "center",
                                 padding: "6px 4px", borderRadius: 8, transition: "background 0.2s",
@@ -205,26 +208,31 @@ export function CryptoWidget({ isDark }: CryptoWidgetProps) {
                                         />
                                     )}
                                     <span style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>{coin.symbol.toUpperCase()}</span>
-                                    <button
-                                        onClick={() => removeCoin(coin.id)}
-                                        style={{
-                                            background: "none", border: "none", cursor: "pointer",
-                                            fontSize: 10, color: textMuted, padding: 0, lineHeight: 1, opacity: 0.4,
-                                        }}
-                                        title="Remove"
-                                    >
-                                        ✕
-                                    </button>
                                 </div>
                                 <span style={{ fontSize: 11, color: textMuted }}>{formatMarketCap(coin.marketCap)}</span>
                             </div>
-                            <div style={{ textAlign: "right" }}>
-                                <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>{formatPrice(coin.price)}</div>
-                                <div style={{
-                                    fontSize: 11, fontWeight: 600,
-                                    color: coin.change24h >= 0 ? "#10b981" : "#ef4444",
-                                }}>
-                                    {coin.change24h >= 0 ? "▲" : "▼"} {Math.abs(coin.change24h).toFixed(1)}%
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <button
+                                    onClick={() => removeCoin(coin.id)}
+                                    style={{
+                                        background: "none", border: "none", cursor: "pointer",
+                                        fontSize: 12, color: "#ef4444", padding: "4px 6px",
+                                        borderRadius: 4, lineHeight: 1,
+                                        opacity: hoveredId === coin.id ? 1 : 0,
+                                        transition: "opacity 0.15s",
+                                    }}
+                                    title="Remove"
+                                >
+                                    ✕
+                                </button>
+                                <div style={{ textAlign: "right" }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: textPrimary }}>{formatPrice(coin.price)}</div>
+                                    <div style={{
+                                        fontSize: 11, fontWeight: 600,
+                                        color: coin.change24h >= 0 ? "#10b981" : "#ef4444",
+                                    }}>
+                                        {coin.change24h >= 0 ? "▲" : "▼"} {Math.abs(coin.change24h).toFixed(1)}%
+                                    </div>
                                 </div>
                             </div>
                         </div>
