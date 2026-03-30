@@ -113,8 +113,8 @@ export function WeatherWidget({ isDark }: WeatherWidgetProps) {
             // Extract hourly precipitation per day
             const now = new Date()
             const currentHour = now.getHours()
-            const hourlyPrecip: { hour: number; probability: number }[] = []
-            const forecastHourlyPrecip: Record<string, { hour: number; probability: number }[]> = {}
+            const hourlyPrecip: { hour: number; probability: number; weatherCode: number }[] = []
+            const forecastHourlyPrecip: Record<string, { hour: number; probability: number; weatherCode: number }[]> = {}
             const times: string[] = data.hourly.time
             const probs: number[] = data.hourly.precipitation_probability
             const codes: number[] = data.hourly.weather_code
