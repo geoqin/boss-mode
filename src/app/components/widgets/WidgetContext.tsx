@@ -15,7 +15,7 @@ import {
 import { arrayMove } from '@dnd-kit/sortable'
 import { createClient } from "@/lib/supabase/client"
 
-export type WidgetType = "weather" | "crypto" | "anime" | "focus" | "search"
+export type WidgetType = "weather" | "crypto" | "anime" | "focus" | "search" | "lists"
 
 export interface WidgetConfig {
     id: string
@@ -38,6 +38,7 @@ export const WIDGET_META: Record<WidgetType, { label: string; emoji: string; des
     anime: { label: "Anime Tracker", emoji: "🎌", description: "Track anime episode releases" },
     focus: { label: "Focus Task", emoji: "🎯", description: "Your most pressing task" },
     search: { label: "Google Search", emoji: "🔍", description: "Quick web search" },
+    lists: { label: "Lists", emoji: "📋", description: "Bullet & checkbox lists" },
 }
 
 const DEFAULT_WIDGETS: WidgetConfig[] = [

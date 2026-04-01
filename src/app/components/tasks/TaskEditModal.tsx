@@ -113,12 +113,10 @@ export function TaskEditModal({
     const { confirmDelete } = useDeleteConfirm()
 
     // Containment validation:
-    // - Subtasks can NEVER be ongoing (ongoing is only for top-level persistent lists)
     // - Regular parent: children cannot be recurring
-    // - Recurring/Ongoing parent: children can be regular or recurring
+    // - Recurring parent: children can be regular or recurring
     const isSubtask = !!parentTask || !!task.parent_task_id
-    const isChildOfRegular = parentTask && !parentTask.ongoing && !parentTask.recurrence
-    const canBeOngoing = !isSubtask // Subtasks can never be ongoing
+    const isChildOfRegular = parentTask && !parentTask.recurrence
     const canBeRecurring = !isChildOfRegular
 
     const [title, setTitle] = useState(task.title)
@@ -142,7 +140,7 @@ export function TaskEditModal({
     const [priority, setPriority] = useState(task.priority)
     const [recurrence, setRecurrence] = useState<'daily' | 'weekly' | 'fortnightly' | 'monthly' | 'quarterly' | 'annually' | 'custom' | ''>(task.recurrence || '')
     const [customIntervalDays, setCustomIntervalDays] = useState<number | ''>(task.recurrence_interval_days || '')
-    const [ongoing, setOngoing] = useState(task.ongoing || false)
+
     const [taskTags, setTaskTags] = useState<{ id: string; name: string; color: string }[]>(task.tags || [])
     const [reminder, setReminder] = useState<string>(task.reminder_minutes_before?.toString() || '')
 
@@ -162,7 +160,7 @@ export function TaskEditModal({
         setPriority(task.priority)
         setRecurrence(task.recurrence || '')
         setCustomIntervalDays(task.recurrence_interval_days || '')
-        setOngoing(task.ongoing || false)
+
         setTaskTags(task.tags || [])
         setReminder(task.reminder_minutes_before?.toString() || '')
         setTabValue(0)
@@ -206,7 +204,6 @@ export function TaskEditModal({
                 priority,
                 recurrence: (recurrence || null) as typeof task.recurrence,
                 recurrence_interval_days: recurrence === 'custom' && customIntervalDays ? customIntervalDays : null,
-                ongoing,
                 reminder_minutes_before: reminder ? parseInt(reminder) : null
             })
             onClose()
@@ -320,15 +317,13 @@ export function TaskEditModal({
                                 label="Due Date"
                                 value={dueDate}
                                 onChange={setDueDate}
-                                disabled={ongoing}
-                                slotProps={{ textField: { fullWidth: true, disabled: ongoing, helperText: ongoing ? 'Ongoing tasks have no due date' : undefined } }}
+                                slotProps={{ textField: { fullWidth: true } }}
                             />
                             <TimePicker
                                 label="Time"
                                 value={dueTime}
                                 onChange={setDueTime}
-                                disabled={ongoing}
-                                slotProps={{ textField: { fullWidth: true, disabled: ongoing } }}
+                                slotProps={{ textField: { fullWidth: true } }}
                             />
                         </Stack>
 
@@ -369,16 +364,16 @@ export function TaskEditModal({
                             </Select>
                         </FormControl>
 
-                        <FormControl fullWidth size="small" disabled={ongoing || !canBeRecurring}>
+                        <FormControl fullWidth size="small" disabled={!canBeRecurring}>
                             <InputLabel id="recurrence-label">Recurrence</InputLabel>
                             <Select
                                 labelId="recurrence-label"
                                 id="recurrence-select"
-                                value={ongoing ? '' : recurrence}
+                                value={recurrence}
                                 onChange={e => setRecurrence(e.target.value as typeof recurrence)}
                                 label="Recurrence"
                                 size="small"
-                                disabled={ongoing || !canBeRecurring}
+                                disabled={!canBeRecurring}
                             >
                                 <MenuItem value="">No Repeat</MenuItem>
                                 <MenuItem value="daily">Daily</MenuItem>
@@ -389,12 +384,7 @@ export function TaskEditModal({
                                 <MenuItem value="annually">Annually</MenuItem>
                                 <MenuItem value="custom">Custom...</MenuItem>
                             </Select>
-                            {ongoing && (
-                                <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
-                                    Ongoing tasks cannot have recurrence
-                                </Typography>
-                            )}
-                            {!canBeRecurring && !ongoing && (
+                            {!canBeRecurring && (
                                 <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
                                     Subtasks of regular tasks cannot be recurring
                                 </Typography>
@@ -470,42 +460,6 @@ export function TaskEditModal({
                             </Box>
                         </Box>
 
-                        <FormControlLabel
-                            control={
-                                <Switch
-                                    checked={ongoing}
-                                    onChange={e => {
-                                        const newValue = e.target.checked
-                                        setOngoing(newValue)
-                                        if (newValue) {
-                                            // Clear recurrence and date when enabling ongoing
-                                            setRecurrence('')
-                                            setCustomIntervalDays('')
-                                            setDueDate(null)
-                                            setDueTime(null)
-                                        }
-                                    }}
-                                    disabled={!!recurrence || !canBeOngoing}
-                                    sx={{
-                                        '& .MuiSwitch-switchBase.Mui-checked': {
-                                            color: '#f97316',
-                                        },
-                                        '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                            backgroundColor: '#f97316',
-                                        },
-                                    }}
-                                />
-                            }
-                            label={
-                                <Box>
-                                    <Typography variant="body2">∞ Ongoing task</Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                        {!canBeOngoing ? 'Subtasks cannot be ongoing' : recurrence ? 'Remove recurrence first to make ongoing' : 'Ongoing tasks always appear in your daily view'}
-                                    </Typography>
-                                </Box>
-                            }
-                            sx={{ mt: 1, alignItems: 'flex-start' }}
-                        />
                     </Stack>
                 </TabPanel>
 
@@ -563,7 +517,7 @@ export function TaskEditModal({
                                             edge="start"
                                             checked={
                                                 // For recurring parents, check childTaskCompletions for this instance
-                                                // For ongoing/regular parents, use the task's completed field
+                                                // For regular parents, use the task's completed field
                                                 task.recurrence
                                                     ? childTaskCompletions.some(c => c.child_task_id === childTask.id && c.instance_date === (instanceDate || new Date().toISOString().split('T')[0]))
                                                     : childTask.completed

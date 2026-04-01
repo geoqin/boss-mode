@@ -92,7 +92,7 @@ export function TaskList({ tasks, onToggle, onDelete, onEdit, theme = 'dark' }: 
               onClick={() => onEdit?.(task)}
             >
               <span className={`block transition-all duration-300 ${task.completed && !needsRevert ? "line-through " + textMuted : textPrimary}`}>
-                {task.ongoing && <span title="Ongoing task">🔄 </span>}{task.title}
+                {task.title}
               </span>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 {task.priority !== 'medium' && (

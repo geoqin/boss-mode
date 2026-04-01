@@ -20,6 +20,7 @@ import { ReminderManager } from "../components/ReminderManager"
 import { WidgetPanel } from "@/app/components/widgets"
 import { WidgetProvider } from "@/app/components/widgets/WidgetContext"
 import { WidgetRearrangeButton } from "@/app/components/widgets/WidgetRearrangeButton"
+import { MobileWidgetDrawer } from "@/app/components/widgets/MobileWidgetDrawer"
 
 export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -291,7 +292,6 @@ export default function DashboardPage() {
         recurrence: newTask.recurrence || null,
         recurrence_interval_days: newTask.recurrence_interval_days || null,
         reminder_minutes_before: newTask.reminder_minutes_before || null,
-        ongoing: newTask.ongoing || false
       })
       .select()
       .single()
@@ -322,7 +322,6 @@ export default function DashboardPage() {
         priority: updates.priority,
         recurrence: updates.recurrence,
         recurrence_interval_days: updates.recurrence_interval_days,
-        ongoing: updates.ongoing,
         category_id: updates.category_id,
         reminder_minutes_before: updates.reminder_minutes_before
       })
@@ -538,7 +537,7 @@ export default function DashboardPage() {
         }
       }
     } else {
-      // ONGOING/REGULAR PARENT: Use persistent completed field on child task
+      // REGULAR PARENT: Use persistent completed field on child task
       const newCompleted = !childTask.completed
       const completedTimestamp = newCompleted ? formatLocalDateTime(new Date()) : null
 
@@ -810,7 +809,7 @@ export default function DashboardPage() {
     // Apply tag filter
     if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
     // Apply hideRecurring filter (hides both recurring and ongoing)
-    if (hideRecurring && (task.recurrence || task.ongoing)) return false
+    if (hideRecurring && task.recurrence) return false
 
     if (task.recurrence) {
       // For recurring tasks: use getRecurringInstances to check if there's an instance today
@@ -862,7 +861,7 @@ export default function DashboardPage() {
   const filteredTasks = todaysTasks
     .filter(task => {
       if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
-      if (hideRecurring && (task.recurrence || task.ongoing)) return false
+      if (hideRecurring && task.recurrence) return false
       return true
     })
     .sort((a, b) => {
@@ -890,7 +889,7 @@ export default function DashboardPage() {
   // Timeline tasks - all tasks for timeline views
   const timelineTasks = tasks.filter(task => {
     if (filterTag !== 'all' && !(task.tags || []).some(t => t.id === filterTag)) return false
-    if (hideRecurring && (task.recurrence || task.ongoing)) return false
+    if (hideRecurring && task.recurrence) return false
     return true
   })
 
@@ -1097,7 +1096,16 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Floating widget rearrange button */}
+        {/* Mobile widget drawer - only visible on small screens (<1280px) */}
+        <MobileWidgetDrawer
+          isDark={isDark}
+          tasks={todaysTasks.map(t => ({ ...t, completed: getTaskCompletedForToday(t) }))}
+          recurringCompletions={recurringCompletions}
+          onToggleTask={toggleTask}
+          dayStartHour={dayStartHour}
+        />
+
+        {/* Floating widget rearrange button - desktop only */}
         <WidgetRearrangeButton isDark={isDark} />
       </div>
       </WidgetProvider>

@@ -27,7 +27,6 @@ import {
   PriorityHigh,
   Repeat,
   Label,
-  Loop,
 } from "@mui/icons-material"
 import { DatePicker, TimePicker } from "@mui/x-date-pickers"
 import { format, isAfter, addDays, startOfDay } from "date-fns"
@@ -47,7 +46,7 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
   const [customIntervalDays, setCustomIntervalDays] = useState<number | ''>("")
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [reminder, setReminder] = useState<string>("")
-  const [isOngoing, setIsOngoing] = useState(false)
+
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const formRef = useRef<HTMLFormElement>(null)
@@ -122,12 +121,11 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
 
       await onAdd({
         title,
-        due_date: isOngoing ? null : isoDate,
+        due_date: isoDate,
         priority,
-        recurrence: isOngoing ? null : (recurrence || null),
+        recurrence: recurrence || null,
         recurrence_interval_days: recurrence === 'custom' && customIntervalDays ? customIntervalDays : null,
         reminder_minutes_before: reminder ? parseInt(reminder) : null,
-        ongoing: isOngoing
       }, selectedTagIds.length > 0 ? selectedTagIds : undefined)
 
       setTitle("")
@@ -138,7 +136,7 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
       setCustomIntervalDays("")
       setSelectedTagIds([])
       setReminder("")
-      setIsOngoing(false)
+
       setShowAdvanced(false)
     } finally {
       setIsSubmitting(false)
@@ -345,7 +343,7 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                   </Box>
                 </Stack>
 
-                {/* Row 5: Repeat + Ongoing */}
+                {/* Row 5: Repeat */}
                 <Stack direction="row" spacing={1} alignItems="center">
                   <FieldIcon icon={<Repeat fontSize="small" />} label="Repeat" />
                   <FormControl size="small" sx={{ minWidth: 50 }} disabled={isSubmitting}>
@@ -360,26 +358,6 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                       <MenuItem value="custom">...</MenuItem>
                     </Select>
                   </FormControl>
-                  <FieldIcon icon={<Loop fontSize="small" />} label="Ongoing" />
-                  <Button
-                    variant={isOngoing ? "contained" : "outlined"}
-                    size="small"
-                    onClick={() => setIsOngoing(!isOngoing)}
-                    disabled={isSubmitting}
-                    sx={{
-                      borderRadius: '16px',
-                      textTransform: 'none',
-                      px: 1.5,
-                      minWidth: 36,
-                      width: 36,
-                      ...(isOngoing ? {
-                        background: '#f97316',
-                        '&:hover': { background: '#ea580c' }
-                      } : {})
-                    }}
-                  >
-                    {isOngoing ? '🔄' : '○'}
-                  </Button>
                 </Stack>
 
                 {/* Custom Interval Row (only shown when custom is selected) */}
@@ -514,33 +492,7 @@ export function TaskForm({ onAdd, tags, theme = 'dark' }: TaskFormProps) {
                   </Stack>
                 )}
 
-                {/* Ongoing Toggle Row */}
-                <Stack direction="row" spacing={2} alignItems="center">
-                  <Button
-                    variant={isOngoing ? "contained" : "outlined"}
-                    size="small"
-                    onClick={() => setIsOngoing(!isOngoing)}
-                    disabled={isSubmitting}
-                    startIcon={<Loop />}
-                    sx={{
-                      borderRadius: '20px',
-                      textTransform: 'none',
-                      px: 2,
-                      minWidth: 120,
-                      ...(isOngoing ? {
-                        background: '#f97316',
-                        '&:hover': { background: '#ea580c' }
-                      } : {})
-                    }}
-                  >
-                    Ongoing
-                  </Button>
-                  {isOngoing && (
-                    <Typography variant="body2" color="text.secondary">
-                      Shows daily, no due date
-                    </Typography>
-                  )}
-                </Stack>
+
               </Stack>
             )}
           </Box>

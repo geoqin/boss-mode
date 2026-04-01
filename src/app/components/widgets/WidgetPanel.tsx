@@ -7,6 +7,7 @@ import { CryptoWidget } from "./CryptoWidget"
 import { AnimeWidget } from "./AnimeWidget"
 import { FocusTaskWidget } from "./FocusTaskWidget"
 import { GoogleSearchWidget } from "./GoogleSearchWidget"
+import { ListsWidget } from "./ListsWidget"
 import { SortableWidget } from "./SortableWidget"
 import { useWidgets, WIDGET_META, WidgetType, WidgetConfig } from "./WidgetContext"
 import { useDroppable } from '@dnd-kit/core'
@@ -50,6 +51,8 @@ export function WidgetPanel({
                 return <AnimeWidget isDark={isDark} />
             case "search":
                 return <GoogleSearchWidget isDark={isDark} />
+            case "lists":
+                return <ListsWidget isDark={isDark} />
             case "focus":
                 return (
                     <FocusTaskWidget

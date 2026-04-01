@@ -95,29 +95,9 @@ export function DayView({
         const result: DayTask[] = []
 
         tasks.forEach(task => {
-            // ONGOING TASKS: Always show on today, regardless of completion status
-            if (task.ongoing && isToday && !task.recurrence) {
-                result.push({
-                    task,
-                    isCompleted: task.completed,
-                    isRecurring: false,
-                    instanceDate: dateStr
-                })
-                return // Don't process further conditions for this task
-            }
-
             if (task.recurrence) {
                 const instances = getRecurringInstances(task, selectedDate, selectedDate)
                 if (instances.includes(dateStr)) {
-                    result.push({
-                        task,
-                        isCompleted: isInstanceCompleted(task.id, dateStr, recurringCompletions),
-                        isRecurring: true,
-                        instanceDate: dateStr
-                    })
-                }
-                // Also show ongoing recurring tasks on today even if not due today
-                else if (task.ongoing && isToday) {
                     result.push({
                         task,
                         isCompleted: isInstanceCompleted(task.id, dateStr, recurringCompletions),
@@ -192,18 +172,13 @@ export function DayView({
                 const sortByOrder = (items: DayTask[]) =>
                     [...items].sort((a, b) => (a.task.sort_order ?? 0) - (b.task.sort_order ?? 0))
 
-                const ongoing = sortByOrder(sortedByPriority.filter(t => t.task.ongoing && !t.isRecurring))
-                const recurring = sortByOrder(sortedByPriority.filter(t => t.isRecurring && !t.task.ongoing))
-                const regular = sortByOrder(sortedByPriority.filter(t => !t.isRecurring && !t.task.ongoing))
+                const recurring = sortByOrder(sortedByPriority.filter(t => t.isRecurring))
+                const regular = sortByOrder(sortedByPriority.filter(t => !t.isRecurring))
 
                 if (sortOrder === 'asc') {
-                    // Reverse order: regular → recurring → ongoing
                     if (regular.length) groups.push({ key: 'tasks', label: 'Tasks', emoji: '📝', tasks: regular })
                     if (recurring.length) groups.push({ key: 'recurring', label: 'Recurring', emoji: '📅', tasks: recurring })
-                    if (ongoing.length) groups.push({ key: 'ongoing', label: 'Ongoing', emoji: '🔄', tasks: ongoing })
                 } else {
-                    // Default order: ongoing → recurring → regular (one-offs at bottom, easy to show alone)
-                    if (ongoing.length) groups.push({ key: 'ongoing', label: 'Ongoing', emoji: '🔄', tasks: ongoing })
                     if (recurring.length) groups.push({ key: 'recurring', label: 'Recurring', emoji: '📅', tasks: recurring })
                     if (regular.length) groups.push({ key: 'tasks', label: 'Tasks', emoji: '📝', tasks: regular })
                 }
@@ -352,8 +327,8 @@ export function DayView({
                 }
             } else if (onMoveTaskToParent) {
                 // Cross-group click - check if valid direction for making subtask
-                // Valid: tasks → recurring, tasks → ongoing, recurring → ongoing
-                const groupPriority: Record<string, number> = { 'tasks': 0, 'recurring': 1, 'ongoing': 2 }
+                // Valid: tasks → recurring
+                const groupPriority: Record<string, number> = { 'tasks': 0, 'recurring': 1 }
                 const selectedPriority = groupPriority[selectedTaskGroup || '']
                 const targetPriority = groupPriority[groupKey]
 
@@ -390,7 +365,7 @@ export function DayView({
 
     const renderTaskItem = (item: DayTask) => {
         const { task, isCompleted, isRecurring, instanceDate } = item
-        const isOverdue = !isRecurring && !isCompleted && !task.ongoing && task.due_date && task.due_date.split('T')[0] < today
+        const isOverdue = !isRecurring && !isCompleted && task.due_date && task.due_date.split('T')[0] < today
 
         return (
             <div
@@ -432,11 +407,7 @@ export function DayView({
                                     : task.recurrence}
                             </span>
                         )}
-                        {sortBy !== 'type' && task.ongoing && !isRecurring && (
-                            <span className={`text-xs ${isDark ? 'text-amber-300' : 'text-amber-600'}`}>
-                                ∞ Ongoing
-                            </span>
-                        )}
+
                         {sortBy !== 'due' && isOverdue && (
                             <span className="text-xs text-red-400">
                                 ⚠️ Overdue
@@ -483,7 +454,7 @@ export function DayView({
                             onChange={(e) => onHideRecurringChange(e.target.checked)}
                             className="w-4 h-4 rounded"
                         />
-                        Hide recurring/ongoing
+                        Hide recurring
                     </label>
                 )}
                 {onReorderTasks && (
